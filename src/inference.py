@@ -9,7 +9,7 @@ def parse_arguments():
     """
     Parse command-line arguments for inference.
     
-    TODO: Implement argparse with:
+    TODO: Implement argparse with: //DONE
     - model_path: Path to saved model weights(do not give absolute path, rather provide relative path)
     - dataset: Dataset to evaluate on
     - batch_size: Batch size for inference
@@ -18,6 +18,12 @@ def parse_arguments():
     - activation: Activation function ('relu', 'sigmoid', 'tanh')
     """
     parser = argparse.ArgumentParser(description='Run inference on test set')
+    parser.add_argument('model_path')
+    parser.add_argument('dataset')
+    parser.add_argument('batch_size',default=42)
+    parser.add_argument('hidden_layers')
+    parser.add_argument('num_neurons')
+    parser.add_argument('activation',default='relu',choices=['relu', 'sigmoid', 'tanh'])
     
     return parser.parse_args()
 
