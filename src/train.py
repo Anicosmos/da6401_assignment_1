@@ -24,16 +24,16 @@ def parse_arguments():
     - model_save_path: Path to save trained model (do not give absolute path, rather provide relative path)
     """
     parser = argparse.ArgumentParser(description='Train a neural network')
-    parser.add_argument('dataset',default='mnist',choices=['mnist','fashion_mnist'])
-    parser.add_argument('epochs',default=1000)
-    parser.add_argument('batch_size',default=42)
-    parser.add_argument('learning_rate',default=0.001)
-    parser.add_argument('optimizer',default='sgd',choices=['sgd', 'momentum', 'nag', 'rmsprop', 'adam', 'nadam'])
-    parser.add_argument('hidden_layers') #not sure
-    parser.add_argument('num_neurons')
-    parser.add_argument('activation',default='relu',choices=['relu', 'sigmoid', 'tanh'])
-    parser.add_argument('loss',default='mse',choices=['cross_entropy','mse'])
-    parser.add_argument('weight_init') # not sure need to check documentation
+    parser.add_argument('-d','--dataset',required=True,default='mnist',choices=['mnist','fashion_mnist'])
+    parser.add_argument('-e','--epochs',required=True,default=1000)
+    parser.add_argument('-b','--batch_size',required=True,default=42)
+    parser.add_argument('-lr','--learning_rate',required=True,default=0.001)
+    parser.add_argument('-o','--optimizer',required=True,default='sgd',choices=['sgd', 'momentum', 'nag', 'rmsprop', 'adam', 'nadam'])
+    parser.add_argument('-sz','--hidden_layers',required=True) #not sure
+    parser.add_argument('--num_neurons') # or num_layers ?
+    parser.add_argument('-a','--activation',required=True,default='relu',choices=['relu', 'sigmoid', 'tanh'])
+    parser.add_argument('-l','--loss',required=True,default='mse',choices=['cross_entropy','mse'])
+    parser.add_argument('-w_i','--weight_init',required=True,default='random',choices=['random','xavier']) # not sure need to check documentation/d2l , xavier prevents vanshing gradients 
     parser.add_argument('wand_project')
     parser.add_argument('model_save_path',default='./models')
     return parser.parse_args()

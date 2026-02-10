@@ -19,11 +19,11 @@ def parse_arguments():
     """
     parser = argparse.ArgumentParser(description='Run inference on test set')
     parser.add_argument('model_path')
-    parser.add_argument('dataset')
-    parser.add_argument('batch_size',default=42)
+    parser.add_argument('-d','--dataset',required=True,default='mnist',choices=['mnist','fashion_mnist'])
+    parser.add_argument('-b','--batch_size',required=True,default=42)
     parser.add_argument('hidden_layers')
     parser.add_argument('num_neurons')
-    parser.add_argument('activation',default='relu',choices=['relu', 'sigmoid', 'tanh'])
+    parser.add_argument('-a','--activation',required=True,default='relu',choices=['relu', 'sigmoid', 'tanh'])
     
     return parser.parse_args()
 
