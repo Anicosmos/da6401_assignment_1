@@ -13,6 +13,14 @@ This assignment requires you to implement a neural network from scratch using on
 - Train and evaluate neural networks
 - Log experiments using Weights & Biases
 
+## TODO 
+- [] Loss Functions and Activations
+- [] optimizers 
+- [] neural_layer 
+- [] neural_network
+- [] train 
+- [] inference 
+-[] Wandb
 ## Contact
 
 For questions or issues, please contact the teaching staff or post on the course forum.
