@@ -4,7 +4,9 @@ Entry point for training neural networks with command-line arguments
 """
 
 import argparse
-
+import wandb
+from ann.neural_network import NeuralNetwork ## only import needed for the main function, we will import the other classes in the neural network class when needed
+from utils.data_loader import load_mnist, load_fashion_mnist ## only import needed for the main function, we will import the other functions in the data loader class when needed
 def parse_arguments():
     """
     Parse command-line arguments.
@@ -44,7 +46,16 @@ def main():
     Main training function.
     """
     args = parse_arguments()
-    # print(args.epochs)
+    if args.dataset == 'mnist':
+        X_train, y_train, X_val, y_val, X_test, y_test = load_mnist()
+    elif args.dataset == 'fashion_mnist':
+        X_train, y_train, X_val, y_val, X_test, y_test = load_fashion_mnist()
+    
+    print(args.epochs)
+    # config = vars(args) ## this will convert the args namespace to a dictionary which is easier to work with
+    # print(config)
+    nn = NeuralNetwork(args) ## we will pass the args namespace to the neural network class which will use it to set the hyperparameters and other settings for the network
+    nn.train(X_train, y_train, X_val, y_val)
     # print("Training complete!")
 
 

@@ -4,7 +4,8 @@ Evaluate trained models on test sets
 """
 
 import argparse
-
+import ann.neural_network as nn
+from utils.data_loader import load_mnist, load_fashion_mnist
 def parse_arguments():
     """
     Parse command-line arguments for inference.

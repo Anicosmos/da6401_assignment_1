@@ -21,6 +21,13 @@ This assignment requires you to implement a neural network from scratch using on
 - [] train 
 - [] inference 
 -[] Wandb
+
+
+## Implementation Notes 
+```
+python src/train.py -d mnist -e 1000 -b 32 -lr 0.001 -o sgd -sz 6 --num_neurons 120 -a relu -l mse -w_i random "test" ./models/
+```
+
 ## Contact
 
 For questions or issues, please contact the teaching staff or post on the course forum.
