@@ -3,6 +3,17 @@ Activation Functions and Their Derivatives
 Implements: ReLU, Sigmoid, Tanh, Softmax
 """
 import numpy as np
+USE_GPU = False 
+if USE_GPU:  # type: ignore
+    try:
+        import cupy as xp
+    except ImportError:
+        print("CuPy is not installed. Falling back to NumPy.")
+        import numpy as xp
+else:
+    import numpy as xp
+    
+import numpy as np ## incase the autograder uses numpy instead of xp
 class ActivationFunction:
     def __init__(self,activation_type='relu'):
         self.activation_type = activation_type
@@ -25,21 +36,21 @@ class ActivationFunction:
         else:
             raise ValueError("Unsupported")
     def relu(self,z): ## most used activation function in deep learning
-        activation = np.maximum(0,z)
+        activation = xp.maximum(0,z)
         return activation
     def sigmoid(self,z): ## mainly used in binary classification problems 2B Module Reference 
-        activation = 1/(1+np.exp(-1*z))
+        activation = 1/(1+xp.exp(-1*z))
         return activation
     def softmax(self,z): ## mainly used in multi-class classification problems 2B Module Reference 
-        exp_z = np.exp(z - np.max(z)) 
-        activation = exp_z / np.sum(exp_z)
+        exp_z = xp.exp(z - xp.max(z)) 
+        activation = exp_z / xp.sum(exp_z)
         return activation
     def tanh(self,z):
-        activation = np.tanh(z)
+        activation = xp.tanh(z)
         return activation
     ## Thier derivatives 
     def relu_derivative(self,z): ## This will be a step function that is 1 for z>0 and 0 otherwise
-        grad = np.where(z > 0, 1, 0)
+        grad = xp.where(z > 0, 1, 0)
         return grad
     def sigmoid_derivative(self,z):
         s = self.sigmoid(z)
