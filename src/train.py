@@ -124,7 +124,7 @@ def main():
 
     print(f"\nArchitecture:")
     for i, layer in enumerate(nn.layers):
-        print(f"  Layer {i}: {layer.input_dim} → {layer.n_neurons}  "
+        print(f"  Layer {i}: {layer.input_dim} ---> {layer.n_neurons}  "
               f"({layer.activation_function.activation_type})")
 
     print(f"\nTraining for {args.epochs} epochs  "

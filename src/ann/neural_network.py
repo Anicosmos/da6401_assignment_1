@@ -157,7 +157,6 @@ class NeuralNetwork:
         """
         Mini-batch SGD training loop.
 
-        The method logs metrics to W&B if a run is active (wandb.run is not None).
 
         Args:
             X_train : (N, 784)
@@ -165,7 +164,7 @@ class NeuralNetwork:
             X_val   : (M, 784)
             y_val   : (M,) integer labels
         """
-        import wandb
+        # import wandb
 
         epochs = int(getattr(self.cli_args, 'epochs', 10))
         batch_size = int(getattr(self.cli_args, 'batch_size', 32))
@@ -209,21 +208,34 @@ class NeuralNetwork:
                   f"train_acc={train_metrics['accuracy']:.4f}  "
                   f"val_acc={val_metrics['accuracy']:.4f}  "
                   f"val_loss={val_metrics['loss']:.4f}")
-
-            # W&B logging
-            if wandb.run is not None:
-                log_dict = {
+            log_dict = {
                     'epoch': epoch,
                     'train_loss': epoch_loss,
                     'train_accuracy': train_metrics['accuracy'],
                     'val_loss': val_metrics['loss'],
                     'val_accuracy': val_metrics['accuracy'],
                 }
-                # Log gradient norms for analysis (first + last hidden layer)
-                for i, layer in enumerate(self.layers[:-1]):
-                    if layer.grad_W is not None:
-                        log_dict[f'grad_norm_layer_{i}'] = float(np.linalg.norm(layer.grad_W))
-                wandb.log(log_dict)
+            # Log gradient norms for analysis (first + last hidden layer)
+            for i, layer in enumerate(self.layers[:-1]):
+                if layer.grad_W is not None:
+                    log_dict[f'grad_norm_layer_{i}'] = float(np.linalg.norm(layer.grad_W))
+            
+            return log_dict ## for wandb logging in the sweep 
+            ## below is for a single run 
+            # # W&B logging
+            # if wandb.run is not None:
+            #     log_dict = {
+            #         'epoch': epoch,
+            #         'train_loss': epoch_loss,
+            #         'train_accuracy': train_metrics['accuracy'],
+            #         'val_loss': val_metrics['loss'],
+            #         'val_accuracy': val_metrics['accuracy'],
+            #     }
+            #     # Log gradient norms for analysis (first + last hidden layer)
+            #     for i, layer in enumerate(self.layers[:-1]):
+            #         if layer.grad_W is not None:
+            #             log_dict[f'grad_norm_layer_{i}'] = float(np.linalg.norm(layer.grad_W))
+            #     wandb.log(log_dict)
 
   
     # Evaluation
