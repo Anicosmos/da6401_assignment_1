@@ -221,8 +221,8 @@ class NeuralNetwork:
                 }
                 # Log gradient norms for analysis (first + last hidden layer)
                 for i, layer in enumerate(self.layers[:-1]):
-                    if layer.grad_w is not None:
-                        log_dict[f'grad_norm_layer_{i}'] = float(np.linalg.norm(layer.grad_w))
+                    if layer.grad_W is not None:
+                        log_dict[f'grad_norm_layer_{i}'] = float(np.linalg.norm(layer.grad_W))
                 wandb.log(log_dict)
 
   
