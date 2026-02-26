@@ -2,11 +2,16 @@
 Main Training Script
 Entry point for training neural networks with command-line arguments
 """
-
 import argparse
+import os
+import sys
 import wandb
-from ann.neural_network import NeuralNetwork ## only import needed for the main function, we will import the other classes in the neural network class when needed
-from utils.data_loader import load_mnist, load_fashion_mnist ## only import needed for the main function, we will import the other functions in the data loader class when needed
+# Ensure the src/ directory is on the path when invoked directly
+sys.path.insert(0, os.path.dirname(__file__))
+from ann.neural_network import NeuralNetwork
+from utils.data_loader import load_mnist, load_fashion_mnist
+
+
 def parse_arguments():
     """
     Parse command-line arguments.
@@ -25,38 +30,124 @@ def parse_arguments():
     - wandb_project: W&B project name
     - model_save_path: Path to save trained model (do not give absolute path, rather provide relative path)
     """
-    parser = argparse.ArgumentParser(description='Train a neural network')
-    parser.add_argument('-d','--dataset',required=True,default='mnist',choices=['mnist','fashion_mnist'])
-    parser.add_argument('-e','--epochs',required=True,default=1000)
-    parser.add_argument('-b','--batch_size',required=True,default=42)
-    parser.add_argument('-lr','--learning_rate',required=True,default=0.001)
-    parser.add_argument('-o','--optimizer',required=True,default='sgd',choices=['sgd', 'momentum', 'nag', 'rmsprop', 'adam', 'nadam'])
-    parser.add_argument('-sz','--hidden_layers',required=True) #not sure
-    parser.add_argument('--num_neurons') # or num_layers ?
-    parser.add_argument('-a','--activation',required=True,default='relu',choices=['relu', 'sigmoid', 'tanh'])
-    parser.add_argument('-l','--loss',required=True,default='mse',choices=['cross_entropy','mse'])
-    parser.add_argument('-w_i','--weight_init',required=True,default='random',choices=['random','xavier']) # not sure need to check documentation/d2l , xavier prevents vanshing gradients 
-    parser.add_argument('wand_project')
-    parser.add_argument('model_save_path',default='./models')
+    parser = argparse.ArgumentParser(description='Train an MLP on MNIST / Fashion-MNIST')
+
+    parser.add_argument('-d','--dataset',
+                        default='mnist', choices=['mnist', 'fashion_mnist'],
+                        help='This chooses the Dataset to train on , deafult is mnist')
+    parser.add_argument('-e','--epochs',
+                        type=int, default=10,
+                        help='Number of training epochs')
+    parser.add_argument('-b','--batch_size',
+                        type=int, default=32,
+                        help='Mini-batch size for Batch SGD')
+    parser.add_argument('-l','--loss',
+                        default='cross_entropy',
+                        choices=['cross_entropy', 'mean_squared_error'],
+                        help='Loss / objective function')
+    parser.add_argument('-o','--optimizer',
+                        default='adam',
+                        choices=['sgd', 'momentum', 'nag', 'rmsprop', 'adam', 'nadam'],
+                        help='Optimisation algorithm')
+    parser.add_argument('-lr','--learning_rate',
+                        type=float, default=1e-3,
+                        help='Initial learning rate')
+    parser.add_argument('-wd','--weight_decay',
+                        type=float, default=0.0,
+                        help='L2 weight-decay coefficient')
+    parser.add_argument('-nhl','--num_layers',
+                        type=int, default=3,
+                        help='Number of hidden layers')
+    parser.add_argument('-sz','--hidden_size',
+                        type=int, default=128,
+                        help='Neurons per hidden layer')
+    parser.add_argument('-a','--activation',
+                        default='relu',
+                        choices=['sigmoid', 'tanh', 'relu'],
+                        help='Activation function for hidden layers')
+    parser.add_argument('-w_i','--weight_init',
+                        default='xavier',
+                        choices=['random', 'xavier', 'zeros'],
+                        help='Weight initialisation strategy')
+
+    # W&B configuration (optional – training works without W&B)
+    parser.add_argument('--wandb_project',
+                        default='da6401_a1',
+                        help='project name')
+    parser.add_argument('--wandb_entity',
+                        default=None,
+                        help='W&B username)')
+
+    # Where to persist the trained model
+    parser.add_argument('--model_save_path',
+                        default='../models/best_model.npy',
+                        help='Path to save the trained model (.npy) that will be used for inference')
+
     return parser.parse_args()
 
 
+def _map_loss_arg(loss_arg):
+    """Normalise loss argument to the name expected by ObjectiveFunction."""
+    mapping = {
+        'mean_squared_error': 'mse',
+        'cross_entropy':      'cross_entropy',
+        'mse':                'mse',
+    }
+    return mapping.get(loss_arg, loss_arg)
+
+
 def main():
-    """
-    Main training function.
-    """
     args = parse_arguments()
+
+    # Normalise the loss name so ObjectiveFunction recognises it
+    args.loss = _map_loss_arg(args.loss)
+
+    # ---- Load dataset ----
+    print(f"Loading {args.dataset} ...")
     if args.dataset == 'mnist':
         X_train, y_train, X_val, y_val, X_test, y_test = load_mnist()
-    elif args.dataset == 'fashion_mnist':
+    else:
         X_train, y_train, X_val, y_val, X_test, y_test = load_fashion_mnist()
-    
-    print(args.epochs)
-    # config = vars(args) ## this will convert the args namespace to a dictionary which is easier to work with
-    # print(config)
-    nn = NeuralNetwork(args) ## we will pass the args namespace to the neural network class which will use it to set the hyperparameters and other settings for the network
+
+    print(f"  Train: {X_train.shape}  Val: {X_val.shape}  Test: {X_test.shape}")
+
+    # ---- Initialise W&B ----
+    run = wandb.init(
+        project=args.wandb_project,
+        entity=args.wandb_entity,
+        config=vars(args),
+        # Allow offline / disabled mode when WANDB_MODE=disabled
+    )
+
+    # ---- Build & train network ----
+    nn = NeuralNetwork(args)
+
+    print(f"\nArchitecture:")
+    for i, layer in enumerate(nn.layers):
+        print(f"  Layer {i}: {layer.input_dim} → {layer.n_neurons}  "
+              f"({layer.activation_function.activation_type})")
+
+    print(f"\nTraining for {args.epochs} epochs  "
+          f"| optimizer={args.optimizer}  lr={args.learning_rate}  "
+          f"batch={args.batch_size}\n")
+
     nn.train(X_train, y_train, X_val, y_val)
-    # print("Training complete!")
+
+    # ---- Final evaluation on test set ----
+    test_metrics = nn.evaluate(X_test, y_test)
+    print(f"\nTest  accuracy={test_metrics['accuracy']:.4f}  "
+          f"loss={test_metrics['loss']:.4f}")
+
+    if wandb.run is not None:
+        wandb.log({'test_accuracy': test_metrics['accuracy'],
+                   'test_loss':     test_metrics['loss']})
+
+    # ---- Save model ----
+    save_path = args.model_save_path
+    nn.save(save_path)
+
+    if wandb.run is not None:
+        wandb.finish()
 
 
 if __name__ == '__main__':

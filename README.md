@@ -24,9 +24,13 @@ This assignment requires you to implement a neural network from scratch using on
 
 
 ## Implementation Notes 
+Use the Following to RUn the Training Script 
+
 ```
 python src/train.py -d mnist -e 1000 -b 32 -lr 0.001 -o sgd -sz 6 --num_neurons 120 -a relu -l mse -w_i random "test" ./models/
 ```
+## Experiments 
+They are logged in the experiments2.ipynb notebook , and divided by section for each problem 
 
 ## Contact
 

@@ -1,10 +1,6 @@
-"""
-Activation Functions and Their Derivatives
-Implements: ReLU, Sigmoid, Tanh, Softmax
-"""
-import numpy as np
-USE_GPU = False 
-if USE_GPU:  # type: ignore
+"""Activation functions for neural network layers"""
+USE_GPU = False
+if USE_GPU:
     try:
         import cupy as xp
     except ImportError:
@@ -12,57 +8,64 @@ if USE_GPU:  # type: ignore
         import numpy as xp
 else:
     import numpy as xp
-    
-import numpy as np ## incase the autograder uses numpy instead of xp
+
+import numpy as np  # in case the autograder uses numpy instead of xp
+
+
 class ActivationFunction:
-    def __init__(self,activation_type='relu'):
+    def __init__(self, activation_type='relu'):
         self.activation_type = activation_type
-    def activate(self,z):
+
+    def activate(self, z):
         if self.activation_type == 'relu':
             return self.relu(z)
         elif self.activation_type == 'sigmoid':
             return self.sigmoid(z)
         elif self.activation_type == 'softmax':
             return self.softmax(z)
+        elif self.activation_type == 'tanh':
+            return self.tanh(z)
         else:
-            raise ValueError("Unsupported")
-    def derivative(self,z):
+            raise ValueError(f"Unsupported activation type: {self.activation_type}")
+
+    def derivative(self, z):
         if self.activation_type == 'relu':
             return self.relu_derivative(z)
         elif self.activation_type == 'sigmoid':
             return self.sigmoid_derivative(z)
         elif self.activation_type == 'softmax':
             return self.softmax_derivative(z)
+        elif self.activation_type == 'tanh':
+            return self.tanh_derivative(z)
         else:
-            raise ValueError("Unsupported")
-    def relu(self,z): ## most used activation function in deep learning
-        activation = xp.maximum(0,z)
-        return activation
-    def sigmoid(self,z): ## mainly used in binary classification problems 2B Module Reference 
-        activation = 1/(1+xp.exp(-1*z))
-        return activation
-    def softmax(self,z): ## mainly used in multi-class classification problems 2B Module Reference 
-        exp_z = xp.exp(z - xp.max(z)) 
-        activation = exp_z / xp.sum(exp_z)
-        return activation
-    def tanh(self,z):
-        activation = xp.tanh(z)
-        return activation
-    ## Thier derivatives 
-    def relu_derivative(self,z): ## This will be a step function that is 1 for z>0 and 0 otherwise
-        grad = xp.where(z > 0, 1, 0)
-        return grad
-    def sigmoid_derivative(self,z):
+            raise ValueError(f"Unsupported activation type: {self.activation_type}")
+
+    def relu(self, z):
+        return xp.maximum(0, z)
+
+    def sigmoid(self, z):
+        return xp.where(z >= 0,
+                        1.0 / (1.0 + xp.exp(-z)),
+                        xp.exp(z) / (1.0 + xp.exp(z)))
+
+    def softmax(self, z):
+        exp_z = xp.exp(z - xp.max(z, axis=1, keepdims=True))
+        return exp_z / xp.sum(exp_z, axis=1, keepdims=True)
+
+    def tanh(self, z):
+        return xp.tanh(z)
+
+    def relu_derivative(self, z):
+        return xp.where(z > 0, 1.0, 0.0)
+
+    def sigmoid_derivative(self, z):
         s = self.sigmoid(z)
-        grad = s * (1 - s)
-        return grad
-    def softmax_derivative(self,z):
+        return s * (1.0 - s)
+
+    def softmax_derivative(self, z):
         s = self.softmax(z)
-        grad = s * (1 - s) 
-        return grad
-    def tanh_derivative(self,z):
+        return s * (1.0 - s)
+
+    def tanh_derivative(self, z):
         t = self.tanh(z)
-        grad = 1 - t**2
-        return grad
-    
-    
+        return 1.0 - t ** 2
