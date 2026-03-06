@@ -96,27 +96,63 @@ class NeuralNetwork:
         Forward Pass  X through every layer in order.
         """
         out = X
-        for layer in self.layers:
-            out = layer.activate_forward(out)
-        return out
+        for i,layer in enumerate(self.layers):
+            if i == len(self.layers)-1 : ## If its  the output layer then dont activate it 
+                out = layer.forward(out, activate=False) 
+            else :
+                out = layer.forward(out, activate=True)
+        return out ## This will only  return the logits only at the final output layer 
 
-    # Backward pass
 
+    # Backward pass Old Implementation 
+
+    # def backward(self, y_true, y_pred):
+    #     """
+    #     Compute learning gradients via backpropagation.
+
+    #     The output layer uses softmax because its a prediction problem; for cross-entropy loss the combined
+    #     gradient simplifies to (y_pred - y_true) / N.  For MSE we fall back to the chain rule.
+
+    #     Args:
+    #         y_true : one-hot labels  (batch_size, 10)
+    #         y_pred : network output  (batch_size, 10)
+
+    #     Stores self.grad_W and self.grad_b on every layer.
+    #     """
+    #     batch_size = y_true.shape[0]
+
+    #     #delta for the output layer
+    #     if self.loss_fn.objective_type == 'cross_entropy':
+    #         # Softmax + CE combined gradient: dL/dz_out = (ŷ − y) / N
+    #         delta = (y_pred - y_true) / batch_size
+    #     else:
+    #         # MSE: chain rule through softmax (element-wise approximation)
+    #         dL_da = self.loss_fn.derivative(y_true, y_pred)
+    #         delta = dL_da * self.layers[-1].activate_derivative()
+
+    #     # backprop through output layer
+    #     delta = self.layers[-1].backward(delta)
+
+    #     #propagate through hidden layers
+    #     for i in reversed(range(len(self.layers) - 1)):
+    #         # multiply by the activation derivative of layer i
+    #         delta = delta * self.layers[i].activate_derivative()
+    #         delta = self.layers[i].backward(delta)
+
+    #     return self.layers[0].grad_W, self.layers[0].grad_b
+    ### Using this Backward prop Function 
     def backward(self, y_true, y_pred):
         """
-        Compute learning gradients via backpropagation.
-
-        The output layer uses softmax because its a prediction problem; for cross-entropy loss the combined
-        gradient simplifies to (y_pred - y_true) / N.  For MSE we fall back to the chain rule.
-
-        Args:
-            y_true : one-hot labels  (batch_size, 10)
-            y_pred : network output  (batch_size, 10)
-
-        Stores self.grad_W and self.grad_b on every layer.
+        Backward propagation to compute gradients.
+        Returns two numpy arrays: grad_Ws, grad_bs.
+        - `grad_Ws[0]` is gradient for the last (output) layer weights,
+          `grad_bs[0]` is gradient for the last layer biases, and so on.
         """
-        batch_size = y_true.shape[0]
+        grad_W_list = []
+        grad_b_list = []
 
+        # Backprop through layers in reverse; collect grads so that index 0 = last layer
+        batch_size = y_true.shape[0]
         #delta for the output layer
         if self.loss_fn.objective_type == 'cross_entropy':
             # Softmax + CE combined gradient: dL/dz_out = (ŷ − y) / N
@@ -134,9 +170,20 @@ class NeuralNetwork:
             # multiply by the activation derivative of layer i
             delta = delta * self.layers[i].activate_derivative()
             delta = self.layers[i].backward(delta)
+            ## Storing the gradients in a list 
+            grad_W_list.append(self.layers[i].grad_W)
+            grad_b_list.append(self.layers[i].grad_b)
 
-        return self.layers[0].grad_W, self.layers[0].grad_b
+        # create explicit object arrays to avoid numpy trying to broadcast shapes
+        self.grad_W = np.empty(len(grad_W_list), dtype=object)
+        self.grad_b = np.empty(len(grad_b_list), dtype=object)
+        for i, (gw, gb) in enumerate(zip(grad_W_list, grad_b_list)):
+            self.grad_W[i] = gw
+            self.grad_b[i] = gb
 
+        # print("Shape of grad_Ws:", self.grad_W.shape, self.grad_W[1].shape)
+        # print("Shape of grad_bs:", self.grad_b.shape, self.grad_b[1].shape)
+        return self.grad_W, self.grad_b
     # Weight update
 
     def update_weights(self):
@@ -153,7 +200,7 @@ class NeuralNetwork:
         return oh
     ##################################### The Training Loop and Evaluation code ############
     
-    def train(self, X_train, y_train, X_val, y_val):
+    def train(self, X_train, y_train, X_val, y_val, use_wandb=True):
         """
         Mini-batch SGD training loop.
 
@@ -164,7 +211,7 @@ class NeuralNetwork:
             X_val   : (M, 784)
             y_val   : (M,) integer labels
         """
-        # import wandb
+        import wandb
 
         epochs = int(getattr(self.cli_args, 'epochs', 10))
         batch_size = int(getattr(self.cli_args, 'batch_size', 32))
@@ -186,7 +233,8 @@ class NeuralNetwork:
                 y_batch = y_shuf[start:start + batch_size]
 
                 # Forward
-                y_pred = self.forward(X_batch)
+                y_pred_logits = self.forward(X_batch)
+                y_pred = self.output_activation.activate(y_pred_logits)
 
                 # Loss for monitoring
                 batch_loss = self.loss_fn.loss(y_batch, y_pred)
@@ -194,7 +242,7 @@ class NeuralNetwork:
                 n_batches += 1
 
                 # Backward + update
-                self.backward(y_batch, y_pred)
+                self.backward(y_batch, y_pred) ## This should also return the list of grads
                 self.update_weights()
 
             epoch_loss /= n_batches
@@ -208,35 +256,35 @@ class NeuralNetwork:
                   f"train_acc={train_metrics['accuracy']:.4f}  "
                   f"val_acc={val_metrics['accuracy']:.4f}  "
                   f"val_loss={val_metrics['loss']:.4f}")
-            log_dict = {
-                    'epoch': epoch,
-                    'train_loss': epoch_loss,
-                    'train_accuracy': train_metrics['accuracy'],
-                    'val_loss': val_metrics['loss'],
-                    'val_accuracy': val_metrics['accuracy'],
-                }
-            # Log gradient norms for analysis (first + last hidden layer)
-            for i, layer in enumerate(self.layers[:-1]):
-                if layer.grad_W is not None:
-                    log_dict[f'grad_norm_layer_{i}'] = float(np.linalg.norm(layer.grad_W))
-            
-            return log_dict ## for wandb logging in the sweep 
-            ## below is for a single run 
-            # # W&B logging
-            # if wandb.run is not None:
-            #     log_dict = {
+            # log_dict = {
             #         'epoch': epoch,
             #         'train_loss': epoch_loss,
             #         'train_accuracy': train_metrics['accuracy'],
             #         'val_loss': val_metrics['loss'],
             #         'val_accuracy': val_metrics['accuracy'],
             #     }
-            #     # Log gradient norms for analysis (first + last hidden layer)
-            #     for i, layer in enumerate(self.layers[:-1]):
-            #         if layer.grad_W is not None:
-            #             log_dict[f'grad_norm_layer_{i}'] = float(np.linalg.norm(layer.grad_W))
-            #     wandb.log(log_dict)
+            # # Log gradient norms for analysis (first + last hidden layer)
+            # for i, layer in enumerate(self.layers[:-1]):
+            #     if layer.grad_W is not None:
+            #         log_dict[f'grad_norm_layer_{i}'] = float(np.linalg.norm(layer.grad_W))
+            
+            # # W&B logging
+            if use_wandb and wandb.run is not None:
+                print(f"Logging epoch {epoch} metrics to W&B...")
+                log_dict = {
+                    'epoch': epoch,
+                    'train_loss': epoch_loss,
+                    'train_accuracy': train_metrics['accuracy'],
+                    'val_loss': val_metrics['loss'],
+                    'val_accuracy': val_metrics['accuracy'],
+                }
+                # Log gradient norms for analysis (first + last hidden layer)
+                for i, layer in enumerate(self.layers[:-1]):
+                    if layer.grad_W is not None:
+                        log_dict[f'grad_norm_layer_{i}'] = float(np.linalg.norm(layer.grad_W))
+                wandb.log(log_dict)
 
+        return log_dict ## for wandb logging in the sweep 
   
     # Evaluation
 
@@ -258,66 +306,85 @@ class NeuralNetwork:
         accuracy = np.mean(preds == y.astype(int))
         return {'loss': float(loss), 'accuracy': float(accuracy)}
 
-    # Model serialisation
-    def save(self, path):
-        """
-        Save all layer weights and biases to a .npy file.
 
-        The file is a pickled numpy object-array dictionary:
-            {
-              'weights': [W0, W1, ...],
-              'biases':  [b0, b1, ...],
-            }
-        A companion JSON config is written alongside the .npy file.
+    ### Provided by TA 
+    def get_weights(self):
+        d = {}
+        for i, layer in enumerate(self.layers):
+            d[f"W{i}"] = layer.W.copy()
+            d[f"b{i}"] = layer.b.copy()
+        return d
 
-        Args:
-            path : str – destination file path (e.g. '../models/best_model.npy')
-        """
-        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    def set_weights(self, weight_dict):
+        for i, layer in enumerate(self.layers):
+            w_key = f"W{i}"
+            b_key = f"b{i}"
+            if w_key in weight_dict:
+                layer.W = weight_dict[w_key].copy()
+            if b_key in weight_dict:
+                layer.b = weight_dict[b_key].copy()
+    # Model serialisation ( Own implementation) 
+    # def save(self, path):
+    #     """
+    #     Save all layer weights and biases to a .npy file.
 
-        model_data = {
-            'weights': [layer.weights for layer in self.layers],
-            'biases':  [layer.biases  for layer in self.layers],
-        }
-        np.save(path, model_data, allow_pickle=True)
+    #     The file is a pickled numpy object-array dictionary:
+    #         {
+    #           'weights': [W0, W1, ...],
+    #           'biases':  [b0, b1, ...],
+    #         }
+    #     A companion JSON config is written alongside the .npy file.
 
-        # Save config alongside
-        config_path = os.path.splitext(path)[0] + '_config.json'
-        config = {
-            'num_layers':    int(getattr(self.cli_args, 'num_layers', 3)),
-            'hidden_size':   int(getattr(self.cli_args, 'hidden_size', 128)),
-            'activation':    getattr(self.cli_args, 'activation', 'relu'),
-            'loss':          getattr(self.cli_args, 'loss', 'cross_entropy'),
-            'optimizer':     getattr(self.cli_args, 'optimizer', 'adam'),
-            'learning_rate': float(getattr(self.cli_args, 'learning_rate', 0.001)),
-            'weight_decay':  float(getattr(self.cli_args, 'weight_decay', 0.0)),
-            'weight_init':   getattr(self.cli_args, 'weight_init', 'random'),
-            'dataset':       getattr(self.cli_args, 'dataset', 'mnist'),
-        }
-        with open(config_path, 'w') as f:
-            json.dump(config, f, indent=2)
+    #     Args:
+    #         path : str – destination file path (e.g. '../models/best_model.npy')
+    #     """
+    #     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
 
-        print(f"Model saved to {path}")
-        print(f"Config saved to {config_path}")
+    #     model_data = {
+    #         'weights': [layer.weights for layer in self.layers],
+    #         'biases':  [layer.biases  for layer in self.layers],
+    #     }
+    #     np.save(path, model_data, allow_pickle=True)
 
-    def load(self, path):
-        """
-        Load weights from a .npy file previously written by save().
+    #     # Save config alongside
+    #     config_path = os.path.splitext(path)[0] + '_config.json'
+    #     config = {
+    #         'num_layers':    int(getattr(self.cli_args, 'num_layers', 3)),
+    #         'hidden_size':   int(getattr(self.cli_args, 'hidden_size', 128)),
+    #         'activation':    getattr(self.cli_args, 'activation', 'relu'),
+    #         'loss':          getattr(self.cli_args, 'loss', 'cross_entropy'),
+    #         'optimizer':     getattr(self.cli_args, 'optimizer', 'adam'),
+    #         'learning_rate': float(getattr(self.cli_args, 'learning_rate', 0.001)),
+    #         'weight_decay':  float(getattr(self.cli_args, 'weight_decay', 0.0)),
+    #         'weight_init':   getattr(self.cli_args, 'weight_init', 'random'),
+    #         'dataset':       getattr(self.cli_args, 'dataset', 'mnist'),
+    #     }
+    #     with open(config_path, 'w') as f:
+    #         json.dump(config, f, indent=2)
 
-        Args:
-            path : str – path to the .npy file
-        """
-        model_data = np.load(path, allow_pickle=True).item()
-        weights_list = model_data['weights']
-        biases_list  = model_data['biases']
+    #     print(f"Model saved to {path}")
+    #     print(f"Config saved to {config_path}")
 
-        if len(weights_list) != len(self.layers):
-            raise ValueError(
-                f"Mismatch: file has {len(weights_list)} layers "
-                f"but network has {len(self.layers)} layers.")
+    # def load(self, path):
+    #     """
+    #     Load weights from a .npy file previously written by save().
 
-        for layer, W, b in zip(self.layers, weights_list, biases_list):
-            layer.weights = W
-            layer.biases  = b
+    #     Args:
+    #         path : str – path to the .npy file
+    #     """
+    #     model_data = np.load(path, allow_pickle=True).item()
+    #     weights_list = model_data['weights']
+    #     biases_list  = model_data['biases']
 
-        print(f"Model loaded from {path}")
+    #     if len(weights_list) != len(self.layers):
+    #         raise ValueError(
+    #             f"Mismatch: file has {len(weights_list)} layers "
+    #             f"but network has {len(self.layers)} layers.")
+
+    #     for layer, W, b in zip(self.layers, weights_list, biases_list):
+    #         layer.weights = W
+    #         layer.biases  = b
+
+    #     print(f"Model loaded from {path}")
+
+    

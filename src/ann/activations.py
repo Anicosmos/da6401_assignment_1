@@ -3,6 +3,7 @@ USE_GPU = False
 if USE_GPU:
     try:
         import cupy as xp
+        print("Using CuPy for GPU acceleration.")
     except ImportError:
         print("CuPy is not installed. Falling back to NumPy.")
         import numpy as xp

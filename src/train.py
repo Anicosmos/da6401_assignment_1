@@ -11,7 +11,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 from ann.neural_network import NeuralNetwork
 from utils.data_loader import load_mnist, load_fashion_mnist
 
-
+LOAD = False ## if true , uses the saved model 
+import numpy as np
 def parse_arguments():
     """
     Parse command-line arguments.
@@ -71,17 +72,17 @@ def parse_arguments():
                         help='Weight initialisation strategy')
 
     # W&B configuration (optional – training works without W&B)
-    parser.add_argument('--wandb_project',
+    parser.add_argument('-w_p','--wandb_project',
                         default='da6401_a1',
                         help='project name')
-    parser.add_argument('--wandb_entity',
+    parser.add_argument('-w_e','--wandb_entity',
                         default=None,
                         help='W&B username)')
 
     # Where to persist the trained model
-    parser.add_argument('--model_save_path',
-                        default='../models/best_model.npy',
-                        help='Path to save the trained model (.npy) that will be used for inference')
+    parser.add_argument('-m_s','--model_save_path',
+                        default='./models/best_model.npy',
+                        help='Path to save the trained model (.npy), Change the path to src if its the best model ')
 
     return parser.parse_args()
 
@@ -95,6 +96,12 @@ def _map_loss_arg(loss_arg):
     }
     return mapping.get(loss_arg, loss_arg)
 
+def load_model(model_path):
+    """
+    Load trained model from disk.
+    """
+    data = np.load(model_path, allow_pickle=True).item()
+    return data
 
 def main():
     args = parse_arguments()
@@ -122,6 +129,13 @@ def main():
     # ---- Build & train network ----
     nn = NeuralNetwork(args)
 
+    # --- Load Model if available ---
+    if LOAD:
+        print(f"Loading model from {args.model_save_path} ...")
+        weights = load_model(args.model_save_path)
+        nn.set_weights(weights)
+    
+    # --- Configuration Information ---
     print(f"\nArchitecture:")
     for i, layer in enumerate(nn.layers):
         print(f"  Layer {i}: {layer.input_dim} ---> {layer.n_neurons}  "
@@ -130,6 +144,8 @@ def main():
     print(f"\nTraining for {args.epochs} epochs  "
           f"| optimizer={args.optimizer}  lr={args.learning_rate}  "
           f"batch={args.batch_size}\n")
+
+
 
     nn.train(X_train, y_train, X_val, y_val)
 
@@ -144,7 +160,8 @@ def main():
 
     # ---- Save model ----
     save_path = args.model_save_path
-    nn.save(save_path)
+    weights = nn.get_weights()
+    np.save(save_path, weights)
 
     if wandb.run is not None:
         wandb.finish()

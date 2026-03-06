@@ -21,8 +21,8 @@ class NeuralLayer: ## This implements the neural layer , stores the gradient and
         self.n_neurons = n_neurons
         self.activation_function = activation_function
 
-        self.weights = None
-        self.biases = None
+        self.W = None
+        self.b = None
 
         self.input = None
         self.z = None
@@ -34,29 +34,35 @@ class NeuralLayer: ## This implements the neural layer , stores the gradient and
 
     def initialize_weights(self, type="random"):
         if type == "random":
-            self.weights = xp.random.randn(self.input_dim, self.n_neurons) * 0.01
+            self.W = xp.random.randn(self.input_dim, self.n_neurons) * 0.01
         elif type == "xavier":
             limit = xp.sqrt(6.0 / (self.input_dim + self.n_neurons))
-            self.weights = xp.random.uniform(low=-limit, high=limit,
+            self.W = xp.random.uniform(low=-limit, high=limit,
                                              size=(self.input_dim, self.n_neurons))
         elif type == "zeros":
-            self.weights = xp.zeros((self.input_dim, self.n_neurons))
+            self.W = xp.zeros((self.input_dim, self.n_neurons))
         else:
             raise ValueError(f"Unknown weight init type: {type}")
 
-        self.biases = xp.zeros((1, self.n_neurons))
+        self.b = xp.zeros((1, self.n_neurons))
 
-    def activate_forward(self, X):
+    # def activate_forward(self,X): #FIXME : Only Logits should be computed , then activate 
+    #     # self.input = X
+    #     # self.z = xp.dot(X, self.weights) + self.biases ## Commenting this out for now 
+    #     self.a = self.activation_function.activate(self.z)
+    #     return self.a
+    def forward(self, X, activate=True):
         self.input = X
-        self.z = xp.dot(X, self.weights) + self.biases
-        self.a = self.activation_function.activate(self.z)
-        return self.a
-
+        self.z = xp.dot(X, self.W) + self.b
+        if activate:
+            self.a = self.activation_function.activate(self.z)
+            return self.a
+        return self.z
     def activate_derivative(self):
         return self.activation_function.derivative(self.z)
 
     def backward(self, delta):
         self.grad_W = xp.dot(self.input.T, delta)
         self.grad_b = xp.sum(delta, axis=0, keepdims=True) ## This ensures that dimention of grad_b is (1, n_neurons) instead of (n_neurons,) which is important for broadcasting during weight updates
-        grad_input = xp.dot(delta, self.weights.T)
+        grad_input = xp.dot(delta, self.W.T)
         return grad_input

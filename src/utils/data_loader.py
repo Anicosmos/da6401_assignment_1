@@ -4,12 +4,15 @@ Handles MNIST and Fashion-MNIST datasets
 """
 from sklearn.datasets import fetch_openml
 from sklearn.model_selection import train_test_split
-
+from sklearn.preprocessing import StandardScaler
 def load_mnist():
     mnist = fetch_openml('mnist_784', version=1,as_frame=False) ## if as_frame is false it will return an numpy array
     ### Normalizing them 
     X = mnist.data / 255.0 
     y = mnist.target.astype(int)
+    ## Scaling using standar Scaler 
+    # scaler = StandardScaler()
+    # X = scaler.fit_transform(X)
     X_train_val, X_test, y_train_val, y_test = train_test_split(
         X, y, test_size=10000, random_state=42, stratify=y
     )

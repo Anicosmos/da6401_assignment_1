@@ -26,8 +26,8 @@ class SGD(Optimizer):
 
     def update(self, layer):
         self._apply_weight_decay(layer)
-        layer.weights -= self.learning_rate * layer.grad_W
-        layer.biases -= self.learning_rate * layer.grad_b
+        layer.W -= self.learning_rate * layer.grad_W
+        layer.b -= self.learning_rate * layer.grad_b
 
 
 class Momentum(Optimizer):
@@ -46,8 +46,8 @@ class Momentum(Optimizer):
         self.velocity_w = self.momentum * self.velocity_w + layer.grad_W
         self.velocity_b = self.momentum * self.velocity_b + layer.grad_b
 
-        layer.weights -= self.learning_rate * self.velocity_w
-        layer.biases -= self.learning_rate * self.velocity_b
+        layer.W -= self.learning_rate * self.velocity_w
+        layer.b -= self.learning_rate * self.velocity_b
 
 
 class NAG(Optimizer):
@@ -68,8 +68,8 @@ class NAG(Optimizer):
         self.velocity_b = self.momentum * self.velocity_b + layer.grad_b
 
         # Nesterov correction
-        layer.weights -= self.learning_rate * (self.momentum * self.velocity_w + layer.grad_W)
-        layer.biases -= self.learning_rate * (self.momentum * self.velocity_b + layer.grad_b)
+        layer.W -= self.learning_rate * (self.momentum * self.velocity_w + layer.grad_W)
+        layer.b -= self.learning_rate * (self.momentum * self.velocity_b + layer.grad_b)
 
 
 class RMSProp(Optimizer):
@@ -89,8 +89,8 @@ class RMSProp(Optimizer):
         self.velocity_w = self.beta * self.velocity_w + (1.0 - self.beta) * (layer.grad_W ** 2)
         self.velocity_b = self.beta * self.velocity_b + (1.0 - self.beta) * (layer.grad_b ** 2)
 
-        layer.weights -= self.learning_rate * layer.grad_W / (xp.sqrt(self.velocity_w) + self.epsilon)
-        layer.biases -= self.learning_rate * layer.grad_b / (xp.sqrt(self.velocity_b) + self.epsilon)
+        layer.W -= self.learning_rate * layer.grad_W / (xp.sqrt(self.velocity_w) + self.epsilon)
+        layer.b -= self.learning_rate * layer.grad_b / (xp.sqrt(self.velocity_b) + self.epsilon)
 
 
 class Adam(Optimizer):
@@ -128,8 +128,8 @@ class Adam(Optimizer):
         v_hat_w = self.v_w / (1.0 - self.beta2 ** self.t)
         v_hat_b = self.v_b / (1.0 - self.beta2 ** self.t)
 
-        layer.weights -= self.learning_rate * m_hat_w / (xp.sqrt(v_hat_w) + self.epsilon)
-        layer.biases -= self.learning_rate * m_hat_b / (xp.sqrt(v_hat_b) + self.epsilon)
+        layer.W -= self.learning_rate * m_hat_w / (xp.sqrt(v_hat_w) + self.epsilon)
+        layer.b -= self.learning_rate * m_hat_b / (xp.sqrt(v_hat_b) + self.epsilon)
 
 
 class Nadam(Optimizer):
