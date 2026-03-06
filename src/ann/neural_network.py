@@ -10,7 +10,8 @@ from .neural_layer import NeuralLayer
 from .activations import ActivationFunction
 from .objective_functions import ObjectiveFunction
 from .optimizers import SGD, Momentum, NAG, RMSProp, Adam, Nadam
-
+from sklearn.metrics import (accuracy_score, precision_score,
+                              recall_score, f1_score, confusion_matrix)
 # We Know the Number of output classes for MNIST as 
 NUM_CLASSES = 10 ## As in 10 digits
 INPUT_DIM = 784 ## 28x28 flattened input
@@ -106,16 +107,16 @@ class NeuralNetwork:
 
     # Backward pass Old Implementation 
 
-    # def backward(self, y_true, y_pred):
+    # def backward(self, y_true, _pred):
     #     """
     #     Compute learning gradients via backpropagation.
 
     #     The output layer uses softmax because its a prediction problem; for cross-entropy loss the combined
-    #     gradient simplifies to (y_pred - y_true) / N.  For MSE we fall back to the chain rule.
+    #     gradient simplifies to (_pred - y_true) / N.  For MSE we fall back to the chain rule.
 
     #     Args:
     #         y_true : one-hot labels  (batch_size, 10)
-    #         y_pred : network output  (batch_size, 10)
+    #         _pred : network output  (batch_size, 10)
 
     #     Stores self.grad_W and self.grad_b on every layer.
     #     """
@@ -124,10 +125,10 @@ class NeuralNetwork:
     #     #delta for the output layer
     #     if self.loss_fn.objective_type == 'cross_entropy':
     #         # Softmax + CE combined gradient: dL/dz_out = (ŷ − y) / N
-    #         delta = (y_pred - y_true) / batch_size
+    #         delta = (_pred - y_true) / batch_size
     #     else:
     #         # MSE: chain rule through softmax (element-wise approximation)
-    #         dL_da = self.loss_fn.derivative(y_true, y_pred)
+    #         dL_da = self.loss_fn.derivative(y_true, _pred)
     #         delta = dL_da * self.layers[-1].activate_derivative()
 
     #     # backprop through output layer
@@ -141,7 +142,7 @@ class NeuralNetwork:
 
     #     return self.layers[0].grad_W, self.layers[0].grad_b
     ### Using this Backward prop Function 
-    def backward(self, y_true, y_pred):
+    def backward(self, y_true, _pred):
         """
         Backward propagation to compute gradients.
         Returns two numpy arrays: grad_Ws, grad_bs.
@@ -156,10 +157,10 @@ class NeuralNetwork:
         #delta for the output layer
         if self.loss_fn.objective_type == 'cross_entropy':
             # Softmax + CE combined gradient: dL/dz_out = (ŷ − y) / N
-            delta = (y_pred - y_true) / batch_size
+            delta = (_pred - y_true) / batch_size
         else:
             # MSE: chain rule through softmax (element-wise approximation)
-            dL_da = self.loss_fn.derivative(y_true, y_pred)
+            dL_da = self.loss_fn.derivative(y_true, _pred)
             delta = dL_da * self.layers[-1].activate_derivative()
 
         # backprop through output layer
@@ -234,15 +235,15 @@ class NeuralNetwork:
 
                 # Forward
                 y_pred_logits = self.forward(X_batch)
-                y_pred = self.output_activation.activate(y_pred_logits)
+                _pred = self.output_activation.activate(y_pred_logits)
 
                 # Loss for monitoring
-                batch_loss = self.loss_fn.loss(y_batch, y_pred)
+                batch_loss = self.loss_fn.loss(y_batch, _pred)
                 epoch_loss += batch_loss
                 n_batches += 1
 
                 # Backward + update
-                self.backward(y_batch, y_pred) ## This should also return the list of grads
+                self.backward(y_batch, _pred) ## This should also return the list of grads
                 self.update_weights()
 
             epoch_loss /= n_batches
@@ -303,8 +304,25 @@ class NeuralNetwork:
         y_pred = self.forward(X)
         loss = self.loss_fn.loss(y_oh, y_pred)
         preds = np.argmax(y_pred, axis=1)
-        accuracy = np.mean(preds == y.astype(int))
-        return {'loss': float(loss), 'accuracy': float(accuracy)}
+
+        ### With the Other Parameters 
+
+        acc      = accuracy_score(y, preds)
+        prec     = precision_score(y, preds, average='macro', zero_division=0)
+        rec      = recall_score(y, preds, average='macro', zero_division=0)
+        f1       = f1_score(y, preds, average='macro', zero_division=0)
+        cm       = confusion_matrix(y, preds)
+
+        return {
+        'logits':           y_pred,
+        'loss':             loss,
+        'accuracy':         float(acc),
+        'precision':        float(prec),
+        'recall':           float(rec),
+        'f1':               float(f1),
+        'confusion_matrix': cm,
+        }
+        # return {'loss': float(loss), 'accuracy': float(accuracy)}
 
 
     ### Provided by TA 
