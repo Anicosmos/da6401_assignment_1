@@ -55,19 +55,39 @@ class NeuralNetwork:
     # ------------------------------------------------------------------
     # Network construction
     # ------------------------------------------------------------------
+    def _normalize_hidden_sizes(self):
+        num_hidden = int(getattr(self.cli_args, "num_layers", 3))
+        hs = getattr(self.cli_args, "hidden_size", 128)
 
+        if isinstance(hs, int):
+            return [hs] * num_hidden
+        if isinstance(hs, (list, tuple)):
+            hs = list(hs)
+            if len(hs) == 1 and num_hidden > 1:
+                return hs * num_hidden
+            if len(hs) != num_hidden:
+                raise ValueError(f"hidden_size length {len(hs)} != num_layers {num_hidden}")
+            return hs
+        raise TypeError("hidden_size must be int or list/tuple of ints")
     def create_network(self):
         """Create NeuralLayer objects according to the CLI configuration."""
-        num_hidden = int(getattr(self.cli_args, 'num_layers', 3))
-        hidden_size = getattr(self.cli_args, 'hidden_size', 128)
+        self.layers = []  # reset layers list
+        # num_hidden = int(getattr(self.cli_args, 'num_layers', 3))
+        # hidden_size = getattr(self.cli_args, 'hidden_size', 128)
+        hidden_size = self._normalize_hidden_sizes()  
+        num_hidden = len(hidden_size)
         weight_init = self.weight_init
 
         if isinstance(hidden_size, int):
-            hidden_size = [hidden_size] * num_hidden
-        elif isinstance(hidden_size, list) :
-            if len(hidden_size) != num_hidden:
-                raise ValueError(f"Number of hidden sizes ({len(hidden_size)}) must match the number of layers ({num_hidden}).")
-            hidden_size = hidden_size
+            hidden_sizes = [hidden_size] * num_hidden
+        elif isinstance(hidden_size, (list, tuple)):
+            hidden_sizes = list(hidden_size)
+            if len(hidden_sizes) == 1 and num_hidden > 1:
+                hidden_sizes = hidden_sizes * num_hidden
+            elif len(hidden_sizes) != num_hidden:
+                raise ValueError(
+                    f"hidden_size length {len(hidden_sizes)} != num_layers {num_hidden}"
+                )
         else:
             raise ValueError(f"Invalid hidden_size: {hidden_size}")
         
@@ -195,8 +215,8 @@ class NeuralNetwork:
             self.grad_W.append(layer.grad_W)
             self.grad_b.append(layer.grad_b)
 
-        print("Shape of grad_Ws:", len(self.grad_W), self.grad_W[1].shape)
-        print("Shape of grad_bs:", len(self.grad_b), self.grad_b[1].shape)
+        # print("Shape of grad_Ws:", len(self.grad_W), self.grad_W[1].shape)
+        # print("Shape of grad_bs:", len(self.grad_b), self.grad_b[1].shape)
         return self.grad_W, self.grad_b
     # Weight update
 
