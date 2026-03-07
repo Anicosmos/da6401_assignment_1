@@ -31,6 +31,15 @@ class NeuralLayer: ## This implements the neural layer , stores the gradient and
         self.grad_W = None
         self.grad_b = None
 
+    ## to fix the autogradder issue ?
+    @property
+    def grad_w(self):
+        return self.grad_W
+
+    @grad_w.setter
+    def grad_w(self, value):
+        self.grad_W = value    
+
 
     def initialize_weights(self, type="random"):
         if type == "random":
