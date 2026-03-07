@@ -200,8 +200,8 @@ class NeuralNetwork:
         self.grad_b = []#np.empty(len(grad_b_list), dtype=object)
         for layer  in self.layers:
             gW = layer.grad_W
-            if weight_decay > 0.0:
-                gW += weight_decay * layer.W
+            # if weight_decay > 0.0:
+            #     gW += weight_decay * layer.W
             self.grad_W.append(gW)
             self.grad_b.append(layer.grad_b)
 
