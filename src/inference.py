@@ -130,7 +130,7 @@ def load_config(config_path, model_path):
 
 def main():
     args = parse_arguments()
-
+    print(f"[DEBUG train.py] args = {vars(args)}")
     # ---- load only thr test data ----
     print(f"Loading {args.dataset} test split ...")
     if args.dataset == 'mnist':

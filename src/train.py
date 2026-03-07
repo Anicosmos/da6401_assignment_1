@@ -99,7 +99,7 @@ def load_model(model_path):
 
 def main():
     args = parse_arguments()
-
+    print(f"[DEBUG train.py] args = {vars(args)}")
     # ---- Validate hidden_size ----
     if len(args.hidden_size) == 1:
         # If a single value is provided, repeat it for all layers
