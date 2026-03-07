@@ -185,8 +185,8 @@ class NeuralNetwork:
             delta = delta * self.layers[i].activate_derivative()
             delta = self.layers[i].backward(delta)
             ## Storing the gradients in a list 
-            grad_W_list.append(0,self.layers[i].grad_W)
-            grad_b_list.append(0,self.layers[i].grad_b)
+            grad_W_list.insert(0, self.layers[i].grad_W)
+            grad_b_list.insert(0, self.layers[i].grad_b)
 
         # create explicit object arrays to avoid numpy trying to broadcast shapes
         self.grad_W = np.empty(len(grad_W_list), dtype=object)
