@@ -1,0 +1,13 @@
+{
+  "num_layers": 3,
+  "hidden_size": 128,
+  "activation": "relu",
+  "loss": "cross_entropy",
+  "optimizer": "nag",
+  "learning_rate": 0.001,
+  "weight_decay": 0.0,
+  "weight_init": "xavier",
+  "dataset": "mnist",
+  "batch_size": 32,
+  "epochs": 10
+}
