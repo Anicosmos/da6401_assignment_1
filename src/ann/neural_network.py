@@ -77,19 +77,6 @@ class NeuralNetwork:
         hidden_size = self._normalize_hidden_sizes()  
         num_hidden = len(hidden_size)
         weight_init = self.weight_init
-
-        if isinstance(hidden_size, int):
-            hidden_sizes = [hidden_size] * num_hidden
-        elif isinstance(hidden_size, (list, tuple)):
-            hidden_sizes = list(hidden_size)
-            if len(hidden_sizes) == 1 and num_hidden > 1:
-                hidden_sizes = hidden_sizes * num_hidden
-            elif len(hidden_sizes) != num_hidden:
-                raise ValueError(
-                    f"hidden_size length {len(hidden_sizes)} != num_layers {num_hidden}"
-                )
-        else:
-            raise ValueError(f"Invalid hidden_size: {hidden_size}")
         
         layer_dims = [INPUT_DIM] + hidden_size + [NUM_CLASSES]
         activations = [self.hidden_activation] * num_hidden + [self.output_activation]
@@ -180,8 +167,8 @@ class NeuralNetwork:
         - `grad_Ws[0]` is gradient for the last (output) layer weights,
           `grad_bs[0]` is gradient for the last layer biases, and so on.
         """
-        grad_W_list = []
-        grad_b_list = []
+        # grad_W_list = []
+        # grad_b_list = []
 
         # Backprop through layers in reverse; collect grads so that index 0 = last layer
         batch_size = y_true.shape[0]
@@ -197,22 +184,25 @@ class NeuralNetwork:
         # backprop through output layer
         delta = self.layers[-1].backward(delta)
 
-        grad_W_list.insert(0, self.layers[-1].grad_W)  # Insert at beginning for correct order
-        grad_b_list.insert(0, self.layers[-1].grad_b)
+        # grad_W_list.insert(0, self.layers[-1].grad_W)  # Insert at beginning for correct order
+        # grad_b_list.insert(0, self.layers[-1].grad_b)
         #propagate through hidden layers
         for i in reversed(range(len(self.layers) - 1)):
             # multiply by the activation derivative of layer i
             delta = delta * self.layers[i].activate_derivative()
             delta = self.layers[i].backward(delta)
             ## Storing the gradients in a list 
-            grad_W_list.append(self.layers[i].grad_W)
-            grad_b_list.append(self.layers[i].grad_b)
-
+            # grad_W_list.append(self.layers[i].grad_W)
+            # grad_b_list.append(self.layers[i].grad_b)
+        weight_decay = float(getattr(self.cli_args, 'weight_decay', 0.0))
         # create explicit object arrays to avoid numpy trying to broadcast shapes
         self.grad_W = []#np.empty(len(grad_W_list), dtype=object)
         self.grad_b = []#np.empty(len(grad_b_list), dtype=object)
         for layer  in self.layers:
-            self.grad_W.append(layer.grad_W)
+            gW = layer.grad_W
+            if weight_decay > 0.0:
+                gW += weight_decay * layer.W
+            self.grad_W.append(gW)
             self.grad_b.append(layer.grad_b)
 
         # print("Shape of grad_Ws:", len(self.grad_W), self.grad_W[1].shape)
@@ -318,7 +308,7 @@ class NeuralNetwork:
                         log_dict[f'grad_norm_layer_{i}'] = float(np.linalg.norm(layer.grad_W))
                 wandb.log(log_dict)
 
-        return log_dict ## for wandb logging in the sweep 
+        return log_dict if epochs > 0 else None
   
     # Evaluation
 
@@ -334,7 +324,8 @@ class NeuralNetwork:
             dict with keys 'loss' and 'accuracy'
         """
         y_oh = self._one_hot(y)
-        y_pred = self.forward(X)
+        logits = self.forward(X)
+        y_pred = self.output_activation.activate(logits)
         loss = self.loss_fn.loss(y_oh, y_pred)
         preds = np.argmax(y_pred, axis=1)
 
@@ -366,14 +357,48 @@ class NeuralNetwork:
             d[f"b{i}"] = layer.b.copy()
         return d
 
+    # def set_weights(self, weight_dict):
+    #     for i, layer in enumerate(self.layers):
+    #         w_key = f"W{i}"
+    #         b_key = f"b{i}"
+    #         if w_key in weight_dict:
+    #             layer.W = weight_dict[w_key].copy()
+    #         if b_key in weight_dict:
+    #             layer.b = weight_dict[b_key].copy()
+
+
     def set_weights(self, weight_dict):
-        for i, layer in enumerate(self.layers):
-            w_key = f"W{i}"
-            b_key = f"b{i}"
-            if w_key in weight_dict:
-                layer.W = weight_dict[w_key].copy()
-            if b_key in weight_dict:
-                layer.b = weight_dict[b_key].copy()
+        w_keys = sorted([k for k in weight_dict if k.startswith("W")],
+                        key=lambda x: int(x[1:]))
+        b_keys = sorted([k for k in weight_dict if k.startswith("b")],
+                        key=lambda x: int(x[1:]))
+
+        # Check if we need to rebuild the network from weight shapes
+        needs_rebuild = (len(self.layers) != len(w_keys))
+        if not needs_rebuild:
+            for i, layer in enumerate(self.layers):
+                if layer.W.shape != weight_dict[f"W{i}"].shape:
+                    needs_rebuild = True
+                    break
+
+        if needs_rebuild:
+            self.layers = []
+            for i, (wk, bk) in enumerate(zip(w_keys, b_keys)):
+                W = weight_dict[wk]
+                b = weight_dict[bk]
+                in_dim, out_dim = W.shape
+                # last layer gets output activation, others get hidden activation
+                act = self.output_activation if i == len(w_keys) - 1 else self.hidden_activation
+                layer = NeuralLayer(i, in_dim, out_dim, act)
+                layer.W = W.copy()
+                layer.b = b.copy()
+                self.layers.append(layer)
+            self.optimizers = self.start_optimizers()
+        else:
+            for i, layer in enumerate(self.layers):
+                layer.W = weight_dict[f"W{i}"].copy()
+                layer.b = weight_dict[f"b{i}"].copy()
+
     # Model serialisation ( Own implementation) 
     def savejson(self, path):
         """
