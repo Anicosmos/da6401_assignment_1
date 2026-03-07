@@ -176,7 +176,9 @@ class NeuralNetwork:
 
         # backprop through output layer
         delta = self.layers[-1].backward(delta)
-
+        
+        grad_W_list.insert(0, self.layers[-1].grad_W)  # Insert at beginning for correct order
+        grad_b_list.insert(0, self.layers[-1].grad_b)
         #propagate through hidden layers
         for i in reversed(range(len(self.layers) - 1)):
             # multiply by the activation derivative of layer i
