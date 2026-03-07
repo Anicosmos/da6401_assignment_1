@@ -110,6 +110,22 @@ def load_model(model_path):
     data = np.load(model_path, allow_pickle=True).item()
     return data
 
+def load_config(config_path, model_path):
+    """
+    Load model config JSON.
+    If config_path is None, infer from model_path:
+      best_model.npy -> best_model_config.json
+    """
+    if config_path is None:
+        config_path = model_path.replace(".npy", "_config.json")
+
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Config JSON not found: {config_path}")
+
+    with open(config_path, "r") as f:
+        cfg = json.load(f)
+    return cfg
+
 
 
 def main():
@@ -124,6 +140,17 @@ def main():
 
     print(f"  Test samples: {X_test.shape[0]}")
 
+    # ---- Load Config ---
+    cfg = load_config(None, args.model_save_path)
+
+    # Force architecture/hparams from saved config (critical)
+    for k in ["num_layers", "hidden_size", "activation", "loss",
+              "optimizer", "learning_rate", "weight_decay", "weight_init",
+              "batch_size", "epochs"]:
+        if k in cfg:
+            setattr(args, k, cfg[k])
+
+    print(f"Loaded config from JSON: {cfg}")
     # ---- Create Network ---
     nn = NeuralNetwork(args)
     # ---- Load Weights ----
