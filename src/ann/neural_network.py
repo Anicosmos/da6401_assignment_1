@@ -334,13 +334,25 @@ class NeuralNetwork:
             X_val   : (M, 784)
             y_val   : (M,) integer labels
         """
-        import wandb
+        # Safe wandb import — autograder may not have it
+        wandb = None
+        if use_wandb:
+            try:
+                import wandb as _wandb
+                if _wandb.run is not None:
+                    wandb = _wandb
+            except ImportError:
+                pass
 
         epochs = int(getattr(self.cli_args, 'epochs', 10))
         batch_size = int(getattr(self.cli_args, 'batch_size', 32))
         n_samples = X_train.shape[0]
 
-        y_train_oh = self._one_hot(y_train)
+        # This can handle both integer labels and one-hot
+        if y_train.ndim == 1 or (y_train.ndim == 2 and y_train.shape[1] == 1):
+            y_train_oh = self._one_hot(y_train.flatten().astype(int))
+        else:
+            y_train_oh = y_train
 
         for epoch in range(1, epochs + 1):
             # Shuffle training data each epoch
@@ -425,7 +437,8 @@ class NeuralNetwork:
         Returns:
             dict with keys 'loss' and 'accuracy'
         """
-        y_oh = self._one_hot(y)
+        y_flat = y.flatten().astype(int)
+        y_oh = self._one_hot(y_flat)
         logits = self.forward(X)
         y_pred = self.output_activation.activate(logits)
         loss = self.loss_fn.loss(y_oh, y_pred)
@@ -433,11 +446,11 @@ class NeuralNetwork:
 
         ### With the Other Parameters 
 
-        acc      = accuracy_score(y, preds)
-        prec     = precision_score(y, preds, average='macro', zero_division=0)
-        rec      = recall_score(y, preds, average='macro', zero_division=0)
-        f1       = f1_score(y, preds, average='macro', zero_division=0)
-        cm       = confusion_matrix(y, preds)
+        acc      = accuracy_score(y_flat, preds)
+        prec     = precision_score(y_flat, preds, average='macro', zero_division=0)
+        rec      = recall_score(y_flat, preds, average='macro', zero_division=0)
+        f1       = f1_score(y_flat, preds, average='macro', zero_division=0)
+        cm       = confusion_matrix(y_flat, preds)
 
         return {
         'logits':           y_pred,

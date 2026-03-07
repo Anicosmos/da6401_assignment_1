@@ -51,7 +51,7 @@ def parse_arguments():
                         choices=['sgd', 'momentum', 'nag', 'rmsprop', 'adam'],
                         help='Optimisation algorithm')
     parser.add_argument('-lr','--learning_rate',
-                        type=float, default=1e-3,
+                        type=float, default=1e-4,
                         help='Initial learning rate')
     parser.add_argument('-wd','--weight_decay',
                         type=float, default=0.0,
