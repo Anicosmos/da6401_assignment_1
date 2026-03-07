@@ -37,7 +37,7 @@ class NeuralNetwork:
         self.hidden_activation = ActivationFunction(activation_type)
 
         # Output layer always uses softmax for multi-class classification for our particular problem
-        self.output_activation = ActivationFunction('softmax')
+        self.output_activation = ActivationFunction('softmax')  
 
         #loss function
         loss_type = getattr(cli_args, 'loss', 'cross_entropy')
@@ -59,10 +59,19 @@ class NeuralNetwork:
     def create_network(self):
         """Create NeuralLayer objects according to the CLI configuration."""
         num_hidden = int(getattr(self.cli_args, 'num_layers', 3))
-        hidden_size = int(getattr(self.cli_args, 'hidden_size', 128))
+        hidden_size = getattr(self.cli_args, 'hidden_size', 128)
         weight_init = self.weight_init
 
-        layer_dims = [INPUT_DIM] + [hidden_size] * num_hidden + [NUM_CLASSES]
+        if isinstance(hidden_size, int):
+            hidden_size = [hidden_size] * num_hidden
+        elif isinstance(hidden_size, list) :
+            if len(hidden_size) != num_hidden:
+                raise ValueError(f"Number of hidden sizes ({len(hidden_size)}) must match the number of layers ({num_hidden}).")
+            hidden_size = hidden_size
+        else:
+            raise ValueError(f"Invalid hidden_size: {hidden_size}")
+        
+        layer_dims = [INPUT_DIM] + hidden_size + [NUM_CLASSES]
         activations = [self.hidden_activation] * num_hidden + [self.output_activation]
 
         for idx, (in_dim, out_dim, act) in enumerate(
@@ -83,7 +92,7 @@ class NeuralNetwork:
             'nag': NAG,
             'rmsprop': RMSProp,
             'adam': Adam, ### Used d2l for reference 
-            'nadam': Nadam, ### Not Implemented yet ## empty Class 
+            # 'nadam': Nadam, ### Not Implemented yet ## empty Class 
         }.get(opt_name)
 
         if optimizer_class is None:
@@ -99,8 +108,10 @@ class NeuralNetwork:
         out = X
         for i,layer in enumerate(self.layers):
             if i == len(self.layers)-1 : ## If its  the output layer then dont activate it 
+                # print(f"Forward pass through output layer {i} with activation {layer.activation_function.activation_type} (Not Activated yet )")
                 out = layer.forward(out, activate=False) 
             else :
+                # print(f"Forward pass through hidden layer {i} with activation {layer.activation_function.activation_type}")
                 out = layer.forward(out, activate=True)
         return out ## This will only  return the logits only at the final output layer 
 
@@ -342,46 +353,40 @@ class NeuralNetwork:
             if b_key in weight_dict:
                 layer.b = weight_dict[b_key].copy()
     # Model serialisation ( Own implementation) 
-    # def save(self, path):
-    #     """
-    #     Save all layer weights and biases to a .npy file.
+    def savejson(self, path):
+        """
+        A companion JSON config is written alongside the .npy file.
 
-    #     The file is a pickled numpy object-array dictionary:
-    #         {
-    #           'weights': [W0, W1, ...],
-    #           'biases':  [b0, b1, ...],
-    #         }
-    #     A companion JSON config is written alongside the .npy file.
+        Args:
+            path : str – destination file path (e.g. '../models/best_model.npy')
+        """
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
 
-    #     Args:
-    #         path : str – destination file path (e.g. '../models/best_model.npy')
-    #     """
-    #     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+          # Handle hidden_size dynamically (list or int)
+        hidden_size = getattr(self.cli_args, 'hidden_size', 128)
+        if isinstance(hidden_size, int):
+            hidden_size = [hidden_size] * int(getattr(self.cli_args, 'num_layers', 3))
 
-    #     model_data = {
-    #         'weights': [layer.weights for layer in self.layers],
-    #         'biases':  [layer.biases  for layer in self.layers],
-    #     }
-    #     np.save(path, model_data, allow_pickle=True)
+        # Save config alongside
+        config_path = os.path.splitext(path)[0] + '_config.json'
+        config = {
+            'num_layers':    int(getattr(self.cli_args, 'num_layers', 3)),
+            'hidden_size':   hidden_size,
+            'activation':    getattr(self.cli_args, 'activation', 'relu'),
+            'loss':          getattr(self.cli_args, 'loss', 'cross_entropy'),
+            'optimizer':     getattr(self.cli_args, 'optimizer', 'rmsprop'),
+            'learning_rate': float(getattr(self.cli_args, 'learning_rate', 0.001)),
+            'weight_decay':  float(getattr(self.cli_args, 'weight_decay', 0.0)),
+            'weight_init':   getattr(self.cli_args, 'weight_init', 'random'),
+            'dataset':       getattr(self.cli_args, 'dataset', 'mnist'),
+            'batch_size':    int(getattr(self.cli_args, 'batch_size', 32)),
+            'epochs':        int(getattr(self.cli_args, 'epochs', 10)),
+        }
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=2)
 
-    #     # Save config alongside
-    #     config_path = os.path.splitext(path)[0] + '_config.json'
-    #     config = {
-    #         'num_layers':    int(getattr(self.cli_args, 'num_layers', 3)),
-    #         'hidden_size':   int(getattr(self.cli_args, 'hidden_size', 128)),
-    #         'activation':    getattr(self.cli_args, 'activation', 'relu'),
-    #         'loss':          getattr(self.cli_args, 'loss', 'cross_entropy'),
-    #         'optimizer':     getattr(self.cli_args, 'optimizer', 'adam'),
-    #         'learning_rate': float(getattr(self.cli_args, 'learning_rate', 0.001)),
-    #         'weight_decay':  float(getattr(self.cli_args, 'weight_decay', 0.0)),
-    #         'weight_init':   getattr(self.cli_args, 'weight_init', 'random'),
-    #         'dataset':       getattr(self.cli_args, 'dataset', 'mnist'),
-    #     }
-    #     with open(config_path, 'w') as f:
-    #         json.dump(config, f, indent=2)
-
-    #     print(f"Model saved to {path}")
-    #     print(f"Config saved to {config_path}")
+        print(f"Model saved to {path}")
+        print(f"Config saved to {config_path}")
 
     # def load(self, path):
     #     """

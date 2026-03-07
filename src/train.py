@@ -44,11 +44,11 @@ def parse_arguments():
                         help='Mini-batch size for Batch SGD')
     parser.add_argument('-l','--loss',
                         default='cross_entropy',
-                        choices=['cross_entropy', 'mean_squared_error'],
+                        choices=['cross_entropy', 'mse'],
                         help='Loss / objective function')
     parser.add_argument('-o','--optimizer',
-                        default='adam',
-                        choices=['sgd', 'momentum', 'nag', 'rmsprop', 'adam', 'nadam'],
+                        default='nag',
+                        choices=['sgd', 'momentum', 'nag', 'rmsprop', 'adam'],
                         help='Optimisation algorithm')
     parser.add_argument('-lr','--learning_rate',
                         type=float, default=1e-3,
@@ -60,7 +60,7 @@ def parse_arguments():
                         type=int, default=3,
                         help='Number of hidden layers')
     parser.add_argument('-sz','--hidden_size',
-                        type=int, default=128,
+                        nargs='+', type=int, default=[128],
                         help='Neurons per hidden layer')
     parser.add_argument('-a','--activation',
                         default='relu',
@@ -73,7 +73,7 @@ def parse_arguments():
 
     # W&B configuration (optional – training works without W&B)
     parser.add_argument('-w_p','--wandb_project',
-                        default='da6401_a1',
+                        default='da6401_a1_tries',
                         help='project name')
     parser.add_argument('-w_e','--wandb_entity',
                         default=None,
@@ -81,20 +81,14 @@ def parse_arguments():
 
     # Where to persist the trained model
     parser.add_argument('-m_s','--model_save_path',
-                        default='./models/best_model.npy',
+                        # default='./models/working_model1.npy',
+                        default='./best_model.npy',
                         help='Path to save the trained model (.npy), Change the path to src if its the best model ')
 
     return parser.parse_args()
 
 
-def _map_loss_arg(loss_arg):
-    """Normalise loss argument to the name expected by ObjectiveFunction."""
-    mapping = {
-        'mean_squared_error': 'mse',
-        'cross_entropy':      'cross_entropy',
-        'mse':                'mse',
-    }
-    return mapping.get(loss_arg, loss_arg)
+
 
 def load_model(model_path):
     """
@@ -106,8 +100,16 @@ def load_model(model_path):
 def main():
     args = parse_arguments()
 
-    # Normalise the loss name so ObjectiveFunction recognises it
-    args.loss = _map_loss_arg(args.loss)
+    # ---- Validate hidden_size ----
+    if len(args.hidden_size) == 1:
+        # If a single value is provided, repeat it for all layers
+        hidden_sizes = args.hidden_size * args.num_layers
+    elif len(args.hidden_size) != args.num_layers:
+        raise ValueError(f"Number of hidden sizes ({len(args.hidden_size)}) must match the number of layers ({args.num_layers}).")
+    else:
+        hidden_sizes = args.hidden_size
+
+    print(f"Using hidden sizes: {hidden_sizes}")
 
     # ---- Load dataset ----
     print(f"Loading {args.dataset} ...")
@@ -147,21 +149,27 @@ def main():
 
 
 
-    nn.train(X_train, y_train, X_val, y_val)
+    nn.train(X_train, y_train, X_val, y_val) ## The Main Training Step 
 
     # ---- Final evaluation on test set ----
     test_metrics = nn.evaluate(X_test, y_test)
     print(f"\nTest  accuracy={test_metrics['accuracy']:.4f}  "
-          f"loss={test_metrics['loss']:.4f}")
+          f"loss={test_metrics['loss']:.4f}\n"
+          f"F1-Score ={test_metrics['f1']:.4f}\n"
+          f"Recall ={test_metrics['recall']:.4f}\n")
 
     if wandb.run is not None:
         wandb.log({'test_accuracy': test_metrics['accuracy'],
-                   'test_loss':     test_metrics['loss']})
+                   'test_loss':     test_metrics['loss'],
+                   'test_f1':       test_metrics['f1'],
+                   'test_recall':   test_metrics['recall']})
 
     # ---- Save model ----
     save_path = args.model_save_path
-    weights = nn.get_weights()
-    np.save(save_path, weights)
+    weights_saved = nn.get_weights()
+    np.save(save_path, weights_saved)
+
+    nn.savejson(save_path.replace('.npy', '.json')) ## Saving the config file as well
 
     if wandb.run is not None:
         wandb.finish()
