@@ -47,7 +47,7 @@ def parse_arguments():
                         choices=['cross_entropy', 'mse'],
                         help='Loss / objective function')
     parser.add_argument('-o','--optimizer',
-                        default='nag',
+                        default='rmsprop',
                         choices=['sgd', 'momentum', 'nag', 'rmsprop', 'adam'],
                         help='Optimisation algorithm')
     parser.add_argument('-lr','--learning_rate',
@@ -60,7 +60,7 @@ def parse_arguments():
                         type=int, default=3,
                         help='Number of hidden layers')
     parser.add_argument('-sz','--hidden_size',
-                        nargs='+', type=int, default=[128],
+                        nargs='+', type=int, default=[128,64,32],
                         help='Neurons per hidden layer')
     parser.add_argument('-a','--activation',
                         default='relu',
@@ -82,7 +82,7 @@ def parse_arguments():
     # Where to persist the trained model
     parser.add_argument('-m_s','--model_save_path',
                         # default='./models/working_model1.npy',
-                        default='./best_model.npy',
+                        default='./src/best_model.npy',
                         help='Path to save the trained model (.npy), Change the path to src if its the best model ')
 
     return parser.parse_args()

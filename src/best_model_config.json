@@ -1,11 +1,13 @@
 {
   "num_layers": 3,
   "hidden_size": [
-    128
+    128,
+    64,
+    32
   ],
   "activation": "relu",
   "loss": "cross_entropy",
-  "optimizer": "nag",
+  "optimizer": "rmsprop",
   "learning_rate": 0.001,
   "weight_decay": 0.0,
   "weight_init": "xavier",

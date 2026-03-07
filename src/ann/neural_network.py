@@ -212,7 +212,7 @@ class NeuralNetwork:
 
     # ...existing code...
 
-    def backward(self, y_true, y_pred):
+    def backward(self, y_true, y_pred,debug=False):
         """
         Backward propagation to compute gradients.
         """
@@ -225,14 +225,15 @@ class NeuralNetwork:
             y_true_oh = y_true
         
         # DEBUG: Print inputs to backward
-        print(f"[DEBUG backward] batch_size={batch_size}")
-        print(f"[DEBUG backward] y_true shape={y_true_oh.shape}, y_pred shape={y_pred.shape}")
-        print(f"[DEBUG backward] y_true[:2]={y_true_oh[:2]}")
-        print(f"[DEBUG backward] y_pred[:2]={y_pred[:2]}")
-        print(f"[DEBUG backward] loss_type={self.loss_fn.objective_type}")
-        print(f"[DEBUG backward] num_layers={len(self.layers)}")
-        for i, layer in enumerate(self.layers):
-            print(f"[DEBUG backward] layer {i}: W={layer.W.shape}, b={layer.b.shape}, act={layer.activation_function.activation_type}")
+        if debug:
+            print(f"[DEBUG backward] batch_size={batch_size}")
+            print(f"[DEBUG backward] y_true shape={y_true_oh.shape}, y_pred shape={y_pred.shape}")
+            print(f"[DEBUG backward] y_true[:2]={y_true_oh[:2]}")
+            print(f"[DEBUG backward] y_pred[:2]={y_pred[:2]}")
+            print(f"[DEBUG backward] loss_type={self.loss_fn.objective_type}")
+            print(f"[DEBUG backward] num_layers={len(self.layers)}")
+            for i, layer in enumerate(self.layers):
+                print(f"[DEBUG backward] layer {i}: W={layer.W.shape}, b={layer.b.shape}, act={layer.activation_function.activation_type}")
 
         # # delta for the output layer
         # if self.loss_fn.objective_type == 'cross_entropy':
@@ -250,27 +251,32 @@ class NeuralNetwork:
         else:
             dL_da = self.loss_fn.derivative(y_true_oh, y_pred)
             delta = dL_da * self.layers[-1].activate_derivative()
-        print(f"[DEBUG backward] initial delta shape={delta.shape}")
-        print(f"[DEBUG backward] initial delta[:2]={delta[:2]}")
-        print(f"[DEBUG backward] initial delta mean={np.mean(np.abs(delta)):.6e}")
+        if debug:
+            print(f"[DEBUG backward] initial delta shape={delta.shape}")
+            print(f"[DEBUG backward] initial delta[:2]={delta[:2]}")
+            print(f"[DEBUG backward] initial delta mean={np.mean(np.abs(delta)):.6e}")
 
         # backprop through output layer
         delta = self.layers[-1].backward(delta)
-        print(f"[DEBUG backward] after output layer backward: delta shape={delta.shape}")
-        print(f"[DEBUG backward] output layer grad_W shape={self.layers[-1].grad_W.shape}, mean={np.mean(np.abs(self.layers[-1].grad_W)):.6e}")
-        print(f"[DEBUG backward] output layer grad_b shape={self.layers[-1].grad_b.shape}, mean={np.mean(np.abs(self.layers[-1].grad_b)):.6e}")
+        if debug:
+            print(f"[DEBUG backward] after output layer backward: delta shape={delta.shape}")
+            print(f"[DEBUG backward] output layer grad_W shape={self.layers[-1].grad_W.shape}, mean={np.mean(np.abs(self.layers[-1].grad_W)):.6e}")
+            print(f"[DEBUG backward] output layer grad_b shape={self.layers[-1].grad_b.shape}, mean={np.mean(np.abs(self.layers[-1].grad_b)):.6e}")
 
         # propagate through hidden layers
         for i in reversed(range(len(self.layers) - 1)):
             act_deriv = self.layers[i].activate_derivative()
-            print(f"[DEBUG backward] layer {i} act_deriv shape={act_deriv.shape}, mean={np.mean(np.abs(act_deriv)):.6e}")
+            if debug:
+                print(f"[DEBUG backward] layer {i} act_deriv shape={act_deriv.shape}, mean={np.mean(np.abs(act_deriv)):.6e}")
             delta = delta * act_deriv
-            print(f"[DEBUG backward] layer {i} delta after act_deriv: mean={np.mean(np.abs(delta)):.6e}")
+            if debug:
+                print(f"[DEBUG backward] layer {i} delta after act_deriv: mean={np.mean(np.abs(delta)):.6e}")
             
             delta = self.layers[i].backward(delta)
-            print(f"[DEBUG backward] layer {i} grad_W shape={self.layers[i].grad_W.shape}, mean={np.mean(np.abs(self.layers[i].grad_W)):.6e}")
-            print(f"[DEBUG backward] layer {i} grad_b shape={self.layers[i].grad_b.shape}, mean={np.mean(np.abs(self.layers[i].grad_b)):.6e}")
-            print(f"[DEBUG backward] layer {i} delta out shape={delta.shape}, mean={np.mean(np.abs(delta)):.6e}")
+            if debug:
+                print(f"[DEBUG backward] layer {i} grad_W shape={self.layers[i].grad_W.shape}, mean={np.mean(np.abs(self.layers[i].grad_W)):.6e}")
+                print(f"[DEBUG backward] layer {i} grad_b shape={self.layers[i].grad_b.shape}, mean={np.mean(np.abs(self.layers[i].grad_b)):.6e}")
+                print(f"[DEBUG backward] layer {i} delta out shape={delta.shape}, mean={np.mean(np.abs(delta)):.6e}")
 
         # collect gradients
         self.grad_W = []
@@ -280,10 +286,11 @@ class NeuralNetwork:
             self.grad_b.append(layer.grad_b)
 
         # DEBUG: Print final gradient summary
-        print(f"[DEBUG backward] === GRADIENT SUMMARY ===")
-        for i, (gw, gb) in enumerate(zip(self.grad_W, self.grad_b)):
-            print(f"[DEBUG backward] grad_W[{i}] shape={gw.shape}, min={gw.min():.6e}, max={gw.max():.6e}, mean={np.mean(np.abs(gw)):.6e}")
-            print(f"[DEBUG backward] grad_b[{i}] shape={gb.shape}, min={gb.min():.6e}, max={gb.max():.6e}, mean={np.mean(np.abs(gb)):.6e}")
+        if debug:
+            print(f"[DEBUG backward] === GRADIENT SUMMARY ===")
+            for i, (gw, gb) in enumerate(zip(self.grad_W, self.grad_b)):
+                print(f"[DEBUG backward] grad_W[{i}] shape={gw.shape}, min={gw.min():.6e}, max={gw.max():.6e}, mean={np.mean(np.abs(gw)):.6e}")
+                print(f"[DEBUG backward] grad_b[{i}] shape={gb.shape}, min={gb.min():.6e}, max={gb.max():.6e}, mean={np.mean(np.abs(gb)):.6e}")
 
         return self.grad_W, self.grad_b
 
