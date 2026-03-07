@@ -179,6 +179,25 @@ def main():
 
     print("Confusion Matrix:")
     print(results['confusion_matrix'])
+    import wandb
+    wandb.init(
+        project=args.wandb_project,
+        entity=args.wandb_entity,
+        job_type="inference",
+        name=f"infer_{args.dataset}_{os.path.splitext(os.path.basename(args.model_save_path))[0]}",
+        config=vars(args),
+        reinit=True
+    )
+    from sklearn.metrics import confusion_matrix
+
+    # assume y_true and y_pred are numpy arrays
+    class_names = [str(i) for i in range(10)]  # MNIST classes
+
+    wandb.log({"confusion_matrix": wandb.plot.confusion_matrix(
+        preds=results['logits'].argmax(axis=1),  # predicted class labels
+        y_true=y_test,  # true class labels
+        class_names=class_names
+    )})
 
     return results
 

@@ -59,16 +59,29 @@ class NeuralNetwork:
         num_hidden = int(getattr(self.cli_args, "num_layers", 3))
         hs = getattr(self.cli_args, "hidden_size", 128)
 
+        # Handle comma-separated string (from wandb sweeps)
+        if isinstance(hs, str):
+            hs = [int(x.strip()) for x in hs.split(',')]
+
         if isinstance(hs, int):
             return [hs] * num_hidden
+
         if isinstance(hs, (list, tuple)):
             hs = list(hs)
+            # Handle nested list [[128,128,128]] — flatten
+            if len(hs) > 0 and isinstance(hs[0], (list, tuple)):
+                hs = list(hs[0])
             if len(hs) == 1 and num_hidden > 1:
                 return hs * num_hidden
             if len(hs) != num_hidden:
-                raise ValueError(f"hidden_size length {len(hs)} != num_layers {num_hidden}")
+                # Truncate or pad to match num_layers
+                if len(hs) > num_hidden:
+                    return hs[:num_hidden]
+                else:
+                    return hs + [hs[-1]] * (num_hidden - len(hs))
             return hs
-        raise TypeError("hidden_size must be int or list/tuple of ints")
+
+        raise TypeError(f"hidden_size must be int, str, or list, got {type(hs)}") 
     def create_network(self):
         """Create NeuralLayer objects according to the CLI configuration."""
         self.layers = []  # reset layers list
