@@ -222,6 +222,18 @@ class NeuralNetwork:
         oh = np.zeros((len(y), num_classes))
         oh[np.arange(len(y)), y.astype(int)] = 1.0
         return oh
+    def _quick_eval(self, X, y):
+        """
+        Lightweight evaluation: only loss + accuracy (no sklearn metrics).
+        Used during training to avoid timeout.
+        """
+        y_oh = self._one_hot(y)
+        logits = self.forward(X)
+        y_pred = self.output_activation.activate(logits)
+        loss = self.loss_fn.loss(y_oh, y_pred)
+        preds = np.argmax(y_pred, axis=1)
+        acc = float(np.mean(preds == y.astype(int)))
+        return {'loss': loss, 'accuracy': acc}
     ##################################### The Training Loop and Evaluation code ############
     
     def train(self, X_train, y_train, X_val, y_val, use_wandb=True):
@@ -272,8 +284,11 @@ class NeuralNetwork:
             epoch_loss /= n_batches
 
             # Evaluate on train and val sets
-            train_metrics = self.evaluate(X_train, y_train)
-            val_metrics = self.evaluate(X_val, y_val)
+            # train_metrics = self.evaluate(X_train, y_train)
+            # val_metrics = self.evaluate(X_val, y_val)
+            # Use lightweight eval during training (no sklearn overhead)
+            train_metrics = self._quick_eval(X_train, y_train)
+            val_metrics = self._quick_eval(X_val, y_val)
 
             print(f"Epoch {epoch}/{epochs}  "
                   f"loss={epoch_loss:.4f}  "
