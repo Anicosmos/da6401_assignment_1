@@ -160,54 +160,119 @@ class NeuralNetwork:
 
     #     return self.layers[0].grad_W, self.layers[0].grad_b
     ### Using this Backward prop Function 
+    # def backward(self, y_true, _pred):
+    #     """
+    #     Backward propagation to compute gradients.
+    #     Returns two numpy arrays: grad_Ws, grad_bs.
+    #     - `grad_Ws[0]` is gradient for the last (output) layer weights,
+    #       `grad_bs[0]` is gradient for the last layer biases, and so on.
+    #     """
+    #     # grad_W_list = []
+    #     # grad_b_list = []
+
+    #     # Backprop through layers in reverse; collect grads so that index 0 = last layer
+    #     batch_size = y_true.shape[0]
+    #     #delta for the output layer
+    #     if self.loss_fn.objective_type == 'cross_entropy':
+    #         # Softmax + CE combined gradient: dL/dz_out = (ŷ − y) / N
+    #         delta = (_pred - y_true) / batch_size
+    #     else:
+    #         # MSE: chain rule through softmax (element-wise approximation)
+    #         dL_da = self.loss_fn.derivative(y_true, _pred)
+    #         delta = dL_da * self.layers[-1].activate_derivative()
+
+    #     # backprop through output layer
+    #     delta = self.layers[-1].backward(delta)
+
+    #     # grad_W_list.insert(0, self.layers[-1].grad_W)  # Insert at beginning for correct order
+    #     # grad_b_list.insert(0, self.layers[-1].grad_b)
+    #     #propagate through hidden layers
+    #     for i in reversed(range(len(self.layers) - 1)):
+    #         # multiply by the activation derivative of layer i
+    #         delta = delta * self.layers[i].activate_derivative()
+    #         delta = self.layers[i].backward(delta)
+    #         ## Storing the gradients in a list 
+    #         # grad_W_list.append(self.layers[i].grad_W)
+    #         # grad_b_list.append(self.layers[i].grad_b)
+    #     weight_decay = float(getattr(self.cli_args, 'weight_decay', 0.0))
+    #     # create explicit object arrays to avoid numpy trying to broadcast shapes
+    #     self.grad_W = []#np.empty(len(grad_W_list), dtype=object)
+    #     self.grad_b = []#np.empty(len(grad_b_list), dtype=object)
+    #     for layer  in self.layers:
+    #         gW = layer.grad_W
+    #         # if weight_decay > 0.0:
+    #         #     gW += weight_decay * layer.W
+    #         self.grad_W.append(gW)
+    #         self.grad_b.append(layer.grad_b)
+
+    #     # print("Shape of grad_Ws:", len(self.grad_W), self.grad_W[1].shape)
+    #     # print("Shape of grad_bs:", len(self.grad_b), self.grad_b[1].shape)
+    #     return self.grad_W, self.grad_b
+
+
+    # ...existing code...
+
     def backward(self, y_true, _pred):
         """
         Backward propagation to compute gradients.
-        Returns two numpy arrays: grad_Ws, grad_bs.
-        - `grad_Ws[0]` is gradient for the last (output) layer weights,
-          `grad_bs[0]` is gradient for the last layer biases, and so on.
         """
-        # grad_W_list = []
-        # grad_b_list = []
-
-        # Backprop through layers in reverse; collect grads so that index 0 = last layer
         batch_size = y_true.shape[0]
-        #delta for the output layer
+
+        # DEBUG: Print inputs to backward
+        print(f"[DEBUG backward] batch_size={batch_size}")
+        print(f"[DEBUG backward] y_true shape={y_true.shape}, _pred shape={_pred.shape}")
+        print(f"[DEBUG backward] y_true[:2]={y_true[:2]}")
+        print(f"[DEBUG backward] _pred[:2]={_pred[:2]}")
+        print(f"[DEBUG backward] loss_type={self.loss_fn.objective_type}")
+        print(f"[DEBUG backward] num_layers={len(self.layers)}")
+        for i, layer in enumerate(self.layers):
+            print(f"[DEBUG backward] layer {i}: W={layer.W.shape}, b={layer.b.shape}, act={layer.activation_function.activation_type}")
+
+        # delta for the output layer
         if self.loss_fn.objective_type == 'cross_entropy':
-            # Softmax + CE combined gradient: dL/dz_out = (ŷ − y) / N
             delta = (_pred - y_true) / batch_size
         else:
-            # MSE: chain rule through softmax (element-wise approximation)
             dL_da = self.loss_fn.derivative(y_true, _pred)
             delta = dL_da * self.layers[-1].activate_derivative()
 
+        print(f"[DEBUG backward] initial delta shape={delta.shape}")
+        print(f"[DEBUG backward] initial delta[:2]={delta[:2]}")
+        print(f"[DEBUG backward] initial delta mean={np.mean(np.abs(delta)):.6e}")
+
         # backprop through output layer
         delta = self.layers[-1].backward(delta)
+        print(f"[DEBUG backward] after output layer backward: delta shape={delta.shape}")
+        print(f"[DEBUG backward] output layer grad_W shape={self.layers[-1].grad_W.shape}, mean={np.mean(np.abs(self.layers[-1].grad_W)):.6e}")
+        print(f"[DEBUG backward] output layer grad_b shape={self.layers[-1].grad_b.shape}, mean={np.mean(np.abs(self.layers[-1].grad_b)):.6e}")
 
-        # grad_W_list.insert(0, self.layers[-1].grad_W)  # Insert at beginning for correct order
-        # grad_b_list.insert(0, self.layers[-1].grad_b)
-        #propagate through hidden layers
+        # propagate through hidden layers
         for i in reversed(range(len(self.layers) - 1)):
-            # multiply by the activation derivative of layer i
-            delta = delta * self.layers[i].activate_derivative()
+            act_deriv = self.layers[i].activate_derivative()
+            print(f"[DEBUG backward] layer {i} act_deriv shape={act_deriv.shape}, mean={np.mean(np.abs(act_deriv)):.6e}")
+            delta = delta * act_deriv
+            print(f"[DEBUG backward] layer {i} delta after act_deriv: mean={np.mean(np.abs(delta)):.6e}")
+            
             delta = self.layers[i].backward(delta)
-            ## Storing the gradients in a list 
-            # grad_W_list.append(self.layers[i].grad_W)
-            # grad_b_list.append(self.layers[i].grad_b)
-        weight_decay = float(getattr(self.cli_args, 'weight_decay', 0.0))
-        # create explicit object arrays to avoid numpy trying to broadcast shapes
-        self.grad_W = []#np.empty(len(grad_W_list), dtype=object)
-        self.grad_b = []#np.empty(len(grad_b_list), dtype=object)
-        for layer  in self.layers:
-            gW = layer.grad_W
-            # if weight_decay > 0.0:
-            #     gW += weight_decay * layer.W
-            self.grad_W.append(gW)
+            print(f"[DEBUG backward] layer {i} grad_W shape={self.layers[i].grad_W.shape}, mean={np.mean(np.abs(self.layers[i].grad_W)):.6e}")
+            print(f"[DEBUG backward] layer {i} grad_b shape={self.layers[i].grad_b.shape}, mean={np.mean(np.abs(self.layers[i].grad_b)):.6e}")
+            print(f"[DEBUG backward] layer {i} delta out shape={delta.shape}, mean={np.mean(np.abs(delta)):.6e}")
+
+        # collect gradients
+        self.grad_W = []
+        self.grad_b = []
+        for layer in self.layers:
+            self.grad_W.append(layer.grad_W)
             self.grad_b.append(layer.grad_b)
 
-        # print("Shape of grad_Ws:", len(self.grad_W), self.grad_W[1].shape)
-        # print("Shape of grad_bs:", len(self.grad_b), self.grad_b[1].shape)
+        # DEBUG: Print final gradient summary
+        print(f"[DEBUG backward] === GRADIENT SUMMARY ===")
+        for i, (gw, gb) in enumerate(zip(self.grad_W, self.grad_b)):
+            print(f"[DEBUG backward] grad_W[{i}] shape={gw.shape}, min={gw.min():.6e}, max={gw.max():.6e}, mean={np.mean(np.abs(gw)):.6e}")
+            print(f"[DEBUG backward] grad_b[{i}] shape={gb.shape}, min={gb.min():.6e}, max={gb.max():.6e}, mean={np.mean(np.abs(gb)):.6e}")
+
         return self.grad_W, self.grad_b
+
+
     # Weight update
 
     def update_weights(self):
