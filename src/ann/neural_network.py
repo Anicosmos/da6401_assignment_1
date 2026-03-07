@@ -362,6 +362,7 @@ class NeuralNetwork:
 
             epoch_loss = 0.0
             n_batches = 0
+            correct = 0
 
             for start in range(0, n_samples, batch_size):
                 X_batch = X_shuf[start:start + batch_size]
@@ -370,6 +371,11 @@ class NeuralNetwork:
                 # Forward
                 y_pred_logits = self.forward(X_batch)
                 _pred = self.output_activation.activate(y_pred_logits)
+                
+                # Track accuracy from training batches 
+                preds = np.argmax(_pred, axis=1)
+                labels = np.argmax(y_batch, axis=1)
+                correct += np.sum(preds == labels)
 
                 # Loss for monitoring
                 batch_loss = self.loss_fn.loss(y_batch, _pred)
@@ -381,17 +387,19 @@ class NeuralNetwork:
                 self.update_weights()
 
             epoch_loss /= n_batches
+            train_acc = correct / n_samples
 
             # Evaluate on train and val sets
             # train_metrics = self.evaluate(X_train, y_train)
             # val_metrics = self.evaluate(X_val, y_val)
             # Use lightweight eval during training (no sklearn overhead)
-            train_metrics = self._quick_eval(X_train, y_train)
+            # train_metrics = self._quick_eval(X_train, y_train)
+
             val_metrics = self._quick_eval(X_val, y_val)
 
             print(f"Epoch {epoch}/{epochs}  "
                   f"loss={epoch_loss:.4f}  "
-                  f"train_acc={train_metrics['accuracy']:.4f}  "
+                  f"train_acc={train_acc:.4f}  "
                   f"val_acc={val_metrics['accuracy']:.4f}  "
                   f"val_loss={val_metrics['loss']:.4f}")
             # log_dict = {
@@ -412,7 +420,7 @@ class NeuralNetwork:
                 log_dict = {
                     'epoch': epoch,
                     'train_loss': epoch_loss,
-                    'train_accuracy': train_metrics['accuracy'],
+                    'train_accuracy': train_acc,
                     'val_loss': val_metrics['loss'],
                     'val_accuracy': val_metrics['accuracy'],
                 }
@@ -519,8 +527,6 @@ class NeuralNetwork:
         """
         A companion JSON config is written alongside the .npy file.
 
-        Args:
-            path : str – destination file path (e.g. '../models/best_model.npy')
         """
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
 
