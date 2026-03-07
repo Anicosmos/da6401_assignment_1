@@ -212,29 +212,44 @@ class NeuralNetwork:
 
     # ...existing code...
 
-    def backward(self, y_true, _pred):
+    def backward(self, y_true, y_pred):
         """
         Backward propagation to compute gradients.
         """
         batch_size = y_true.shape[0]
 
+        # Convert integer labels to one-hot if needed
+        if y_true.ndim == 1 or (y_true.ndim == 2 and y_true.shape[1] == 1):
+            y_true_oh = self._one_hot(y_true.flatten().astype(int), num_classes=y_pred.shape[1])
+        else:
+            y_true_oh = y_true
+        
         # DEBUG: Print inputs to backward
         print(f"[DEBUG backward] batch_size={batch_size}")
-        print(f"[DEBUG backward] y_true shape={y_true.shape}, _pred shape={_pred.shape}")
-        print(f"[DEBUG backward] y_true[:2]={y_true[:2]}")
-        print(f"[DEBUG backward] _pred[:2]={_pred[:2]}")
+        print(f"[DEBUG backward] y_true shape={y_true_oh.shape}, y_pred shape={y_pred.shape}")
+        print(f"[DEBUG backward] y_true[:2]={y_true_oh[:2]}")
+        print(f"[DEBUG backward] y_pred[:2]={y_pred[:2]}")
         print(f"[DEBUG backward] loss_type={self.loss_fn.objective_type}")
         print(f"[DEBUG backward] num_layers={len(self.layers)}")
         for i, layer in enumerate(self.layers):
             print(f"[DEBUG backward] layer {i}: W={layer.W.shape}, b={layer.b.shape}, act={layer.activation_function.activation_type}")
 
-        # delta for the output layer
+        # # delta for the output layer
+        # if self.loss_fn.objective_type == 'cross_entropy':
+        #     delta = (y_pred - y_true) / batch_size
+        # else:
+        #     dL_da = self.loss_fn.derivative(y_true, _pred)
+        #     delta = dL_da * self.layers[-1].activate_derivative()
+                # Apply softmax if y_pred looks like logits (not probabilities)
         if self.loss_fn.objective_type == 'cross_entropy':
-            delta = (_pred - y_true) / batch_size
+            pred_sum = np.sum(y_pred, axis=1)
+            if not np.allclose(pred_sum, 1.0, atol=0.1):
+                # y_pred is logits, apply softmax
+                y_pred = self.output_activation.activate(y_pred)
+            delta = (y_pred - y_true_oh) / batch_size
         else:
-            dL_da = self.loss_fn.derivative(y_true, _pred)
+            dL_da = self.loss_fn.derivative(y_true_oh, y_pred)
             delta = dL_da * self.layers[-1].activate_derivative()
-
         print(f"[DEBUG backward] initial delta shape={delta.shape}")
         print(f"[DEBUG backward] initial delta[:2]={delta[:2]}")
         print(f"[DEBUG backward] initial delta mean={np.mean(np.abs(delta)):.6e}")
