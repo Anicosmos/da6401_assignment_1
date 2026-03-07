@@ -1,41 +1,40 @@
-# Assignment 1: Multi-Layer Perceptron for Image Classification
+# Assignment 1: Multi-Layer Perceptron from Scratch
 
-## Overview
+Built a neural network using only NumPy
 
-This assignment requires you to implement a neural network from scratch using only NumPy. You will build all components including layers, activations, optimizers, and loss functions, then train your network on MNIST or Fashion-MNIST datasets.
+## What i was able to  Implement
 
-## Learning Objectives
+- [x] Loss Functions (Cross-Entropy, MSE) and Activations (ReLU, Sigmoid, Tanh)
+- [x] Optimizers (SGD, Momentum, RMSProp, NAG)
+- [x] Neural Layer (forward + backward pass) But More validation neede3d
+- [x] Neural Network class (training, evaluation, save/load)
+- [x] Training script with CLI args
+- [x] W&B logging (sweeps, metrics, image tables)
+- [x] Hyperparameter search (Bayes + Grid)
+- [] Experiments notebook (dataset viz, optimizer showdown, loss comparison, weight init)
 
-- Understand forward and backward propagation
-- Implement gradient computation manually
-- Implement various optimizers (SGD, Momentum, Adam, Nadam)
-- Work with activation functions and their derivatives
-- Train and evaluate neural networks
-- Log experiments using Weights & Biases
-
-## TODO 
-- [] Loss Functions and Activations
-- [] optimizers 
-- [] neural_layer 
-- [] neural_network
-- [] train 
-- [] inference 
--[] Wandb
-
-
-## Implementation Notes 
-Use the Following to RUn the Training Script 
+## How to Run
 
 ```
 python src/train.py -d mnist -e 1000 -b 32 -lr 0.001 -o sgd -sz 6 --num_neurons 120 -a relu -l mse -w_i random "test" ./models/
 ```
-## Experiments 
-They are logged in the experiments2.ipynb notebook , and divided by section for each problem 
+
+## Experiments
+
+All experiments are in `notebooks/experiments_updated.ipynb` and `notebooks/experiments_updated.ipynb`, split by question.
+
+## Notes
+
+- Bayes search was used for the 100-run hyperparameter sweep
+- Best F1 score came from NAG, not RMSProp (RMSProp probably needs more LR tuning — only tried 0.001, 0.01, 0.1) 
+- LR 0.1 caused dead neurons with ReLU
+
+## Links
+
+- **W&B Report:** [Link](https://wandb.ai/anicosmos-iitm/da6401_a1/reports/Assignment-1---VmlldzoxNjEzNDgyMw?accessToken=olix2q8aaxcg8l0mri3oa35lo25po9ib3lhyc45il3a0eupsuxk6vduxyknxcprb)
+- **GitHub Repo:** [Link](https://github.com/Anicosmos/da6401_assignment_1)
+
 
 ## Contact
 
-For questions or issues, please contact the teaching staff or post on the course forum.
-
----
-
-Good luck with your implementation!
+Anirudh Bharadwaj — EE25S046
