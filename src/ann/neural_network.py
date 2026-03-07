@@ -176,17 +176,17 @@ class NeuralNetwork:
 
         # backprop through output layer
         delta = self.layers[-1].backward(delta)
-        
-        grad_W_list.insert(0, self.layers[-1].grad_W)  # Insert at beginning for correct order
-        grad_b_list.insert(0, self.layers[-1].grad_b)
+
+        grad_W_list.insert(self.layers[-1].grad_W)  # Insert at beginning for correct order
+        grad_b_list.insert(self.layers[-1].grad_b)
         #propagate through hidden layers
         for i in reversed(range(len(self.layers) - 1)):
             # multiply by the activation derivative of layer i
             delta = delta * self.layers[i].activate_derivative()
             delta = self.layers[i].backward(delta)
             ## Storing the gradients in a list 
-            grad_W_list.append(self.layers[i].grad_W)
-            grad_b_list.append(self.layers[i].grad_b)
+            grad_W_list.append(0,self.layers[i].grad_W)
+            grad_b_list.append(0,self.layers[i].grad_b)
 
         # create explicit object arrays to avoid numpy trying to broadcast shapes
         self.grad_W = np.empty(len(grad_W_list), dtype=object)
