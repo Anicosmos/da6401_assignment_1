@@ -122,7 +122,7 @@ class NeuralNetwork:
         return [optimizer_class(lr, weight_decay=wd) for _ in self.layers]
     
     # Forward pass
-    def forward(self, X,debug=True):
+    def forward(self, X,debug=False):
         """
         Forward Pass  X through every layer in order.
         """
