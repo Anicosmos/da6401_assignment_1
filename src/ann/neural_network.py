@@ -122,18 +122,34 @@ class NeuralNetwork:
         return [optimizer_class(lr, weight_decay=wd) for _ in self.layers]
     
     # Forward pass
-    def forward(self, X):
+    def forward(self, X,debug=True):
         """
         Forward Pass  X through every layer in order.
         """
         out = X
+        if debug:
+            print(f"\n=== FORWARD PASS DEBUG ===")
+            print(f"Input shape: {out.shape}, min: {out.min():.4f}, max: {out.max():.4f}, mean: {out.mean():.4f}, std: {out.std():.4f}")
+            print(f"Has NaN: {np.isnan(out).any()}, Has Inf: {np.isinf(out).any()}")
         for i,layer in enumerate(self.layers):
             if i == len(self.layers)-1 : ## If its  the output layer then dont activate it 
                 # print(f"Forward pass through output layer {i} with activation {layer.activation_function.activation_type} (Not Activated yet )")
                 out = layer.forward(out, activate=False) 
+                if debug:
+                    print(f"\nLayer {i} (OUTPUT - {layer.activation_function.activation_type}, NOT activated):")
+                    print(f"  Shape: {out.shape}, min: {out.min():.4f}, max: {out.max():.4f}, mean: {out.mean():.4f}, std: {out.std():.4f}")
+                    print(f"  Has NaN: {np.isnan(out).any()}, Has Inf: {np.isinf(out).any()}")
+                    print(f"  Sample outputs (first 5): {out[0][:min(5, out.shape[1])]}")
             else :
                 # print(f"Forward pass through hidden layer {i} with activation {layer.activation_function.activation_type}")
                 out = layer.forward(out, activate=True)
+                if debug:
+                    print(f"\nLayer {i} (HIDDEN - {layer.activation_function.activation_type}):")
+                    print(f"  Shape: {out.shape}, min: {out.min():.4f}, max: {out.max():.4f}, mean: {out.mean():.4f}, std: {out.std():.4f}")
+                    print(f"  Has NaN: {np.isnan(out).any()}, Has Inf: {np.isinf(out).any()}")
+                    print(f"  Dead neurons (zeros): {(out == 0).sum()} / {out.size} ({(out == 0).sum()/out.size*100:.2f}%)")
+        if debug:
+            print(f"\n=== END FORWARD PASS ===\n")
         return out ## This will only  return the logits only at the final output layer 
 
     def backward(self, y_true, y_pred_logits, debug=False):
