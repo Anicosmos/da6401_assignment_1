@@ -135,99 +135,13 @@ class NeuralNetwork:
                 out = layer.forward(out, activate=True)
         return out ## This will only  return the logits only at the final output layer 
 
-
-    # Backward pass Old Implementation 
-
-    # def backward(self, y_true, _pred):
-    #     """
-    #     Compute learning gradients via backpropagation.
-
-    #     The output layer uses softmax because its a prediction problem; for cross-entropy loss the combined
-    #     gradient simplifies to (_pred - y_true) / N.  For MSE we fall back to the chain rule.
-
-    #     Args:
-    #         y_true : one-hot labels  (batch_size, 10)
-    #         _pred : network output  (batch_size, 10)
-
-    #     Stores self.grad_W and self.grad_b on every layer.
-    #     """
-    #     batch_size = y_true.shape[0]
-
-    #     #delta for the output layer
-    #     if self.loss_fn.objective_type == 'cross_entropy':
-    #         # Softmax + CE combined gradient: dL/dz_out = (ŷ − y) / N
-    #         delta = (_pred - y_true) / batch_size
-    #     else:
-    #         # MSE: chain rule through softmax (element-wise approximation)
-    #         dL_da = self.loss_fn.derivative(y_true, _pred)
-    #         delta = dL_da * self.layers[-1].activate_derivative()
-
-    #     # backprop through output layer
-    #     delta = self.layers[-1].backward(delta)
-
-    #     #propagate through hidden layers
-    #     for i in reversed(range(len(self.layers) - 1)):
-    #         # multiply by the activation derivative of layer i
-    #         delta = delta * self.layers[i].activate_derivative()
-    #         delta = self.layers[i].backward(delta)
-
-    #     return self.layers[0].grad_W, self.layers[0].grad_b
-    ### Using this Backward prop Function 
-    # def backward(self, y_true, _pred):
-    #     """
-    #     Backward propagation to compute gradients.
-    #     Returns two numpy arrays: grad_Ws, grad_bs.
-    #     - `grad_Ws[0]` is gradient for the last (output) layer weights,
-    #       `grad_bs[0]` is gradient for the last layer biases, and so on.
-    #     """
-    #     # grad_W_list = []
-    #     # grad_b_list = []
-
-    #     # Backprop through layers in reverse; collect grads so that index 0 = last layer
-    #     batch_size = y_true.shape[0]
-    #     #delta for the output layer
-    #     if self.loss_fn.objective_type == 'cross_entropy':
-    #         # Softmax + CE combined gradient: dL/dz_out = (ŷ − y) / N
-    #         delta = (_pred - y_true) / batch_size
-    #     else:
-    #         # MSE: chain rule through softmax (element-wise approximation)
-    #         dL_da = self.loss_fn.derivative(y_true, _pred)
-    #         delta = dL_da * self.layers[-1].activate_derivative()
-
-    #     # backprop through output layer
-    #     delta = self.layers[-1].backward(delta)
-
-    #     # grad_W_list.insert(0, self.layers[-1].grad_W)  # Insert at beginning for correct order
-    #     # grad_b_list.insert(0, self.layers[-1].grad_b)
-    #     #propagate through hidden layers
-    #     for i in reversed(range(len(self.layers) - 1)):
-    #         # multiply by the activation derivative of layer i
-    #         delta = delta * self.layers[i].activate_derivative()
-    #         delta = self.layers[i].backward(delta)
-    #         ## Storing the gradients in a list 
-    #         # grad_W_list.append(self.layers[i].grad_W)
-    #         # grad_b_list.append(self.layers[i].grad_b)
-    #     weight_decay = float(getattr(self.cli_args, 'weight_decay', 0.0))
-    #     # create explicit object arrays to avoid numpy trying to broadcast shapes
-    #     self.grad_W = []#np.empty(len(grad_W_list), dtype=object)
-    #     self.grad_b = []#np.empty(len(grad_b_list), dtype=object)
-    #     for layer  in self.layers:
-    #         gW = layer.grad_W
-    #         # if weight_decay > 0.0:
-    #         #     gW += weight_decay * layer.W
-    #         self.grad_W.append(gW)
-    #         self.grad_b.append(layer.grad_b)
-
-    #     # print("Shape of grad_Ws:", len(self.grad_W), self.grad_W[1].shape)
-    #     # print("Shape of grad_bs:", len(self.grad_b), self.grad_b[1].shape)
-    #     return self.grad_W, self.grad_b
-
-
-    # ...existing code...
-
-    def backward(self, y_true, y_pred,debug=False):
+    def backward(self, y_true, y_pred, debug=False):
         """
         Backward propagation to compute gradients.
+
+        Args:
+            y_true: integer labels or one-hot labels
+            y_pred: either output probabilities or raw logits
         """
         batch_size = y_true.shape[0]
 
@@ -236,37 +150,35 @@ class NeuralNetwork:
             y_true_oh = self._one_hot(y_true.flatten().astype(int), num_classes=y_pred.shape[1])
         else:
             y_true_oh = y_true
-        
-        # DEBUG: Print inputs to backward
+
+        # Accept both logits and probabilities for autograder compatibility
+        if self._is_probability_distribution(y_pred):
+            y_prob = y_pred
+            input_kind = "probs"
+        else:
+            y_prob = self.output_activation.activate(y_pred)
+            input_kind = "logits"
+
         if debug:
             print(f"[DEBUG backward] batch_size={batch_size}")
             print(f"[DEBUG backward] y_true shape={y_true_oh.shape}, y_pred shape={y_pred.shape}")
-            print(f"[DEBUG backward] y_true[:2]={y_true_oh[:2]}")
-            print(f"[DEBUG backward] y_pred[:2]={y_pred[:2]}")
+            print(f"[DEBUG backward] input interpreted as {input_kind}")
             print(f"[DEBUG backward] loss_type={self.loss_fn.objective_type}")
             print(f"[DEBUG backward] num_layers={len(self.layers)}")
             for i, layer in enumerate(self.layers):
                 print(f"[DEBUG backward] layer {i}: W={layer.W.shape}, b={layer.b.shape}, act={layer.activation_function.activation_type}")
 
-        # # delta for the output layer
-        # if self.loss_fn.objective_type == 'cross_entropy':
-        #     delta = (y_pred - y_true) / batch_size
-        # else:
-        #     dL_da = self.loss_fn.derivative(y_true, _pred)
-        #     delta = dL_da * self.layers[-1].activate_derivative()
-                # Apply softmax if y_pred looks like logits (not probabilities)
+        # Delta for output layer
         if self.loss_fn.objective_type == 'cross_entropy':
-            pred_sum = np.sum(y_pred, axis=1)
-            if not np.allclose(pred_sum, 1.0, atol=0.1):
-                # y_pred is logits, apply softmax
-                y_pred = self.output_activation.activate(y_pred)
-            delta = (y_pred - y_true_oh) / batch_size
+            # Softmax + CE combined gradient wrt logits
+            delta = (y_prob - y_true_oh) / batch_size
         else:
-            dL_da = self.loss_fn.derivative(y_true_oh, y_pred)
+            # For MSE this matches current project convention (element-wise activation derivative)
+            dL_da = self.loss_fn.derivative(y_true_oh, y_prob)
             delta = dL_da * self.layers[-1].activate_derivative()
+
         if debug:
             print(f"[DEBUG backward] initial delta shape={delta.shape}")
-            print(f"[DEBUG backward] initial delta[:2]={delta[:2]}")
             print(f"[DEBUG backward] initial delta mean={np.mean(np.abs(delta)):.6e}")
 
         # backprop through output layer
@@ -307,6 +219,16 @@ class NeuralNetwork:
 
         return self.grad_W, self.grad_b
 
+
+    @staticmethod
+    def _is_probability_distribution(x, atol=1e-6):
+        """Return True when rows of x look like valid probability distributions."""
+        if x.ndim != 2:
+            return False
+        if np.any(x < -atol) or np.any(x > 1.0 + atol):
+            return False
+        row_sums = np.sum(x, axis=1)
+        return np.allclose(row_sums, 1.0, atol=atol)
 
     # Weight update
 

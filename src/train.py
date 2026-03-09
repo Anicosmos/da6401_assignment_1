@@ -169,7 +169,7 @@ def main():
     weights_saved = nn.get_weights()
     np.save(save_path, weights_saved)
 
-    nn.savejson(save_path.replace('.npy', '.json')) ## Saving the config file as well
+    nn.savejson(save_path) ## Saving the config file as well
 
     if wandb.run is not None:
         wandb.finish()
