@@ -2,8 +2,8 @@
   "num_layers": 3,
   "hidden_size": [
     128,
-    64,
-    32
+    128,
+    128
   ],
   "activation": "relu",
   "loss": "cross_entropy",

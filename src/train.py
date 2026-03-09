@@ -6,6 +6,7 @@ import argparse
 import os
 import sys
 import wandb
+from sklearn.model_selection import train_test_split
 # Ensure the src/ directory is on the path when invoked directly
 sys.path.insert(0, os.path.dirname(__file__))
 from ann.neural_network import NeuralNetwork
@@ -60,7 +61,7 @@ def parse_arguments():
                         type=int, default=3,
                         help='Number of hidden layers')
     parser.add_argument('-sz','--hidden_size',
-                        nargs='+', type=int, default=[128,64,32],
+                        nargs='+', type=int, default=[128,128,128],
                         help='Neurons per hidden layer')
     parser.add_argument('-a','--activation',
                         default='relu',
@@ -84,6 +85,15 @@ def parse_arguments():
                         # default='./models/working_model1.npy',
                         default='./src/best_model.npy',
                         help='Path to save the trained model (.npy), Change the path to src if its the best model ')
+
+    parser.add_argument('--derive_test_from_val',
+                        action='store_true',
+                        help='Do not use official test split; split validation into val/test halves.')
+
+    parser.add_argument('--derived_test_ratio',
+                        type=float,
+                        default=0.5,
+                        help='When --derive_test_from_val is enabled, fraction of validation set moved to test set.')
 
     return parser.parse_args()
 
@@ -118,6 +128,19 @@ def main():
     else:
         X_train, y_train, X_val, y_val, X_test, y_test = load_fashion_mnist()
 
+    if args.derive_test_from_val:
+        if not (0.0 < args.derived_test_ratio < 1.0):
+            raise ValueError("derived_test_ratio must be in (0, 1)")
+
+        X_val, X_test, y_val, y_test = train_test_split(
+            X_val,
+            y_val,
+            test_size=args.derived_test_ratio,
+            random_state=42,
+            stratify=y_val,
+        )
+        print("Using derived test split from validation set (official test split ignored).")
+
     print(f"  Train: {X_train.shape}  Val: {X_val.shape}  Test: {X_test.shape}")
 
     # ---- Initialise W&B ----
@@ -149,7 +172,7 @@ def main():
 
 
 
-    nn.train(X_train, y_train, X_val, y_val) ## The Main Training Step 
+    nn.train(X_train, y_train, X_val, y_val) ## The Main Training Step with updated step 
 
     # ---- Final evaluation on test set ----
     test_metrics = nn.evaluate(X_test, y_test)

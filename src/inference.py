@@ -63,16 +63,16 @@ def parse_arguments():
                         choices=['sgd', 'momentum', 'nag', 'rmsprop', 'adam'],
                         help='Optimisation algorithm')
     parser.add_argument('-lr','--learning_rate',
-                        type=float, default=1e-3,
+                        type=float, default=1e-4,
                         help='Initial learning rate')
     parser.add_argument('-wd','--weight_decay',
                         type=float, default=0.0,
                         help='L2 weight-decay coefficient')
     parser.add_argument('-nhl','--num_layers',
-                        type=int, default=4,
+                        type=int, default=3,
                         help='Number of hidden layers')
     parser.add_argument('-sz','--hidden_size',
-                        type=int, default=128,
+                        nargs='+', type=int, default=[128,128,128],
                         help='Neurons per hidden layer')
     parser.add_argument('-a','--activation',
                         default='relu',
@@ -85,7 +85,7 @@ def parse_arguments():
 
     # W&B configuration (optional – training works without W&B)
     parser.add_argument('-w_p','--wandb_project',
-                        default='da6401_a1',
+                        default='da6401_a1_tries',
                         help='project name')
     parser.add_argument('-w_e','--wandb_entity',
                         default=None,
@@ -93,10 +93,21 @@ def parse_arguments():
 
     # Where to persist the trained model
     parser.add_argument('-m_s','--model_save_path',
-                        default='./models/working_model.npy',
+                        # default='./models/working_model1.npy',
+                        default='./src/best_model.npy',
                         help='Path to save the trained model (.npy), Change the path to src if its the best model ')
 
+    parser.add_argument('--derive_test_from_val',
+                        action='store_true',
+                        help='Do not use official test split; split validation into val/test halves.')
+
+    parser.add_argument('--derived_test_ratio',
+                        type=float,
+                        default=0.5,
+                        help='When --derive_test_from_val is enabled, fraction of validation set moved to test set.')
+
     return parser.parse_args()
+
 
 
 # ---------------------------------------------------------------------------

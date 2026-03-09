@@ -44,7 +44,7 @@ class NeuralNetwork:
         self.loss_fn = ObjectiveFunction(loss_type)
 
         #weight initialisation
-        self.weight_init = getattr(cli_args, 'weight_init', 'random')
+        self.weight_init = getattr(cli_args, 'weight_init', 'xavier')
 
         #build layers
         self.create_network()
@@ -99,12 +99,13 @@ class NeuralNetwork:
             layer = NeuralLayer(idx, in_dim, out_dim, act)
             layer.initialize_weights(weight_init)
             self.layers.append(layer)
+        print(f'Length of layers from the network class {len(self.layers)}')
 
     def start_optimizers(self):
         ### Start an optimizer instance per layer.
         lr = float(getattr(self.cli_args, 'learning_rate', 0.001))
         wd = float(getattr(self.cli_args, 'weight_decay', 0.0))
-        opt_name = getattr(self.cli_args, 'optimizer', 'adam').lower()
+        opt_name = getattr(self.cli_args, 'optimizer', 'rmsprop').lower()
 
         optimizer_class = {
             'sgd': SGD,
@@ -135,33 +136,34 @@ class NeuralNetwork:
                 out = layer.forward(out, activate=True)
         return out ## This will only  return the logits only at the final output layer 
 
-    def backward(self, y_true, y_pred, debug=False):
+    def backward(self, y_true, y_pred_logits, debug=False):
         """
         Backward propagation to compute gradients.
 
         Args:
             y_true: integer labels or one-hot labels
-            y_pred: either output probabilities or raw logits
+            y_pred_logits:  raw logits
         """
         batch_size = y_true.shape[0]
 
         # Convert integer labels to one-hot if needed
         if y_true.ndim == 1 or (y_true.ndim == 2 and y_true.shape[1] == 1):
-            y_true_oh = self._one_hot(y_true.flatten().astype(int), num_classes=y_pred.shape[1])
+            y_true_oh = self._one_hot(y_true.flatten().astype(int), num_classes=y_pred_logits.shape[1])
         else:
             y_true_oh = y_true
 
         # Accept both logits and probabilities for autograder compatibility
-        if self._is_probability_distribution(y_pred):
-            y_prob = y_pred
+        if self._is_probability_distribution(y_pred_logits):
+            y_prob = y_pred_logits
             input_kind = "probs"
         else:
-            y_prob = self.output_activation.activate(y_pred)
+            y_prob = self.output_activation.activate(y_pred_logits)
             input_kind = "logits"
+            # print('in logits mode')
 
         if debug:
             print(f"[DEBUG backward] batch_size={batch_size}")
-            print(f"[DEBUG backward] y_true shape={y_true_oh.shape}, y_pred shape={y_pred.shape}")
+            print(f"[DEBUG backward] y_true shape={y_true_oh.shape}, y_pred shape={y_pred_logits.shape}")
             print(f"[DEBUG backward] input interpreted as {input_kind}")
             print(f"[DEBUG backward] loss_type={self.loss_fn.objective_type}")
             print(f"[DEBUG backward] num_layers={len(self.layers)}")
@@ -305,20 +307,20 @@ class NeuralNetwork:
 
                 # Forward
                 y_pred_logits = self.forward(X_batch)
-                _pred = self.output_activation.activate(y_pred_logits)
+                y_pred = self.output_activation.activate(y_pred_logits) ## Huge Mistake in backprop ! 
                 
                 # Track accuracy from training batches 
-                preds = np.argmax(_pred, axis=1)
+                preds = np.argmax(y_pred, axis=1)
                 labels = np.argmax(y_batch, axis=1)
                 correct += np.sum(preds == labels)
 
                 # Loss for monitoring
-                batch_loss = self.loss_fn.loss(y_batch, _pred)
+                batch_loss = self.loss_fn.loss(y_batch, y_pred)
                 epoch_loss += batch_loss
                 n_batches += 1
 
                 # Backward + update
-                self.backward(y_batch, _pred) ## This should also return the list of grads
+                self.backward(y_batch, y_pred_logits) ## This should also return the list of grads
                 self.update_weights()
 
             epoch_loss /= n_batches
@@ -381,6 +383,7 @@ class NeuralNetwork:
             dict with keys 'loss' and 'accuracy'
         """
         y_flat = y.flatten().astype(int)
+        print(f'Shape of y in evaluate {y.shape}, flattened to {y_flat.shape}')
         y_oh = self._one_hot(y_flat)
         logits = self.forward(X)
         y_pred = self.output_activation.activate(logits)
@@ -410,6 +413,7 @@ class NeuralNetwork:
     ### Provided by TA 
     def get_weights(self):
         d = {}
+        print(len(self.layers))
         for i, layer in enumerate(self.layers):
             d[f"W{i}"] = layer.W.copy()
             d[f"b{i}"] = layer.b.copy()
@@ -430,7 +434,7 @@ class NeuralNetwork:
                         key=lambda x: int(x[1:]))
         b_keys = sorted([k for k in weight_dict if k.startswith("b")],
                         key=lambda x: int(x[1:]))
-
+        print(f'Number of layers {len(self.layers)}, Number of keys {(w_keys)}')
         # Check if we need to rebuild the network from weight shapes
         needs_rebuild = (len(self.layers) != len(w_keys))
         if not needs_rebuild:
@@ -439,21 +443,25 @@ class NeuralNetwork:
                     needs_rebuild = True
                     break
 
-        if needs_rebuild:
-            self.layers = []
-            for i, (wk, bk) in enumerate(zip(w_keys, b_keys)):
-                W = weight_dict[wk]
-                b = weight_dict[bk]
-                in_dim, out_dim = W.shape
-                # last layer gets output activation, others get hidden activation
-                act = self.output_activation if i == len(w_keys) - 1 else self.hidden_activation
-                layer = NeuralLayer(i, in_dim, out_dim, act)
-                layer.W = W.copy()
-                layer.b = b.copy()
-                self.layers.append(layer)
-            self.optimizers = self.start_optimizers()
-        else:
-            for i, layer in enumerate(self.layers):
+        # if needs_rebuild:
+        #     print('Needs Rebuild')
+        #     self.layers = []
+        #     for i, (wk, bk) in enumerate(zip(w_keys, b_keys)):
+        #         W = weight_dict[wk]
+        #         b = weight_dict[bk]
+        #         in_dim, out_dim = W.shape
+        #         # last layer gets output activation, others get hidden activation
+        #         act = self.output_activation if i == len(w_keys) - 1 else self.hidden_activation
+        #         layer = NeuralLayer(i, in_dim, out_dim, act)
+        #         layer.W = W.copy()
+        #         layer.b = b.copy()
+        #         self.layers.append(layer)
+        #     self.optimizers = self.start_optimizers()
+        # else:
+        #     for i, layer in enumerate(self.layers):
+        #         layer.W = weight_dict[f"W{i}"].copy()
+        #         layer.b = weight_dict[f"b{i}"].copy()
+        for i, layer in enumerate(self.layers):
                 layer.W = weight_dict[f"W{i}"].copy()
                 layer.b = weight_dict[f"b{i}"].copy()
 
